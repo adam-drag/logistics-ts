@@ -2,8 +2,9 @@
  * @logistics-ts/inventory — safety stock, reorder point, EOQ, coverage, issues.
  *
  * M0 scaffold: the actual formulas land in M4 (see plans/v0.1.md). This stub
- * imports from @logistics-ts/core to exercise the layered build. The declared
- * dependency on @logistics-ts/forecasting (auto safety stock) is wired in M4.
+ * imports from @logistics-ts/core to exercise the layered build. Dependencies
+ * on classification and forecasting (for auto safety stock) are added in M4,
+ * when the code first imports them.
  */
 import { type Explained, explain } from '@logistics-ts/core'
 

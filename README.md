@@ -30,13 +30,16 @@ for AI agents building on top of the library.
 | [`@logistics-ts/inventory`](packages/inventory) | Safety stock, reorder point, EOQ, coverage, issue analysis |
 | [`logistics-ts`](packages/logistics-ts) | Umbrella package that re-exports everything under namespaces |
 
-Dependency direction is enforced in CI:
+Dependency direction is enforced in CI as a strict layered order — each package
+may import only from lower layers:
 
 ```
-core  <-  forecasting, classification, inventory
-inventory  ->  forecasting          (one-way)
-logistics-ts (umbrella)  ->  all
+core  →  classification  →  forecasting  →  inventory  →  logistics-ts
 ```
+
+`core` has zero runtime dependencies; `forecasting`'s auto method selection
+routes through `classification` (SBC demand patterns); `inventory`'s auto safety
+stock builds on both.
 
 ## Development
 

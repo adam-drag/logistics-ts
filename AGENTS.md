@@ -26,15 +26,21 @@ research.md        competitive / feasibility / algorithm research
 
 ## Dependency direction (enforced by `pnpm deps:check`)
 
+Layers, most stable first — a package may import only from **lower** layers:
+
 ```
-core  <-  forecasting, classification, inventory
-inventory  ->  forecasting        (one-way, allowed)
-logistics-ts  ->  all
+0  core            zero runtime dependencies
+1  classification  -> core
+2  forecasting     -> core, classification          (autoForecast routes via SBC)
+3  inventory       -> core, classification, forecasting
+4  logistics-ts    -> all of the above (umbrella)
 ```
 
 `core` must stay a leaf with **zero runtime dependencies**. Never introduce a
-cycle or import "upward" (e.g. classification must not import inventory). The
-rules live in [`.dependency-cruiser.cjs`](.dependency-cruiser.cjs).
+cycle or import "upward" a layer (e.g. classification must not import
+forecasting or inventory). A package declares a lower-layer dependency in its
+`package.json` when it first imports from it. The rules live in
+[`.dependency-cruiser.cjs`](.dependency-cruiser.cjs).
 
 ## Conventions
 

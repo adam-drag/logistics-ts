@@ -1,12 +1,17 @@
 /**
- * Enforces the dependency direction from plans/v0.1.md:
+ * Enforces the layered dependency order from plans/v0.1.md.
  *
- *   core  <-  inventory, classification, forecasting
- *   inventory  ->  forecasting        (one-way, allowed)
- *   logistics-ts (umbrella)  ->  all
+ * Layers, most stable first — a package may import only from LOWER layers:
  *
- * Forbidden: anything importing back into inventory/classification, and any
- * cycles. core must stay dependency-free (leaf of the graph).
+ *   0  core            (zero runtime dependencies)
+ *   1  classification  -> core
+ *   2  forecasting     -> core, classification        (autoForecast routes via SBC)
+ *   3  inventory       -> core, classification, forecasting
+ *   4  logistics-ts    -> all of the above (umbrella)
+ *
+ * Any import that points "up" a layer (or sideways into a same-layer sibling)
+ * is forbidden, as is any cycle. This keeps the graph a DAG with a single
+ * stable direction of dependency.
  */
 module.exports = {
   forbidden: [
@@ -20,23 +25,30 @@ module.exports = {
     {
       name: 'core-is-a-leaf',
       severity: 'error',
-      comment: '@logistics-ts/core must not depend on any sibling package.',
+      comment: 'core (layer 0) must not depend on any sibling package.',
       from: { path: 'packages/core/src' },
-      to: { path: 'packages/(inventory|classification|forecasting|logistics-ts)/src' },
+      to: { path: 'packages/(classification|forecasting|inventory|logistics-ts)/src' },
     },
     {
-      name: 'no-imports-into-inventory',
+      name: 'classification-only-uses-core',
       severity: 'error',
-      comment: 'Only the umbrella package may depend on inventory.',
-      from: { path: 'packages/(classification|forecasting)/src' },
-      to: { path: 'packages/inventory/src' },
+      comment: 'classification (layer 1) may depend only on core.',
+      from: { path: 'packages/classification/src' },
+      to: { path: 'packages/(forecasting|inventory|logistics-ts)/src' },
     },
     {
-      name: 'no-imports-into-classification',
+      name: 'forecasting-stays-below-inventory',
       severity: 'error',
-      comment: 'classification is a leaf consumed by inventory/umbrella only.',
-      from: { path: 'packages/(forecasting)/src' },
-      to: { path: 'packages/classification/src' },
+      comment: 'forecasting (layer 2) may depend only on core and classification.',
+      from: { path: 'packages/forecasting/src' },
+      to: { path: 'packages/(inventory|logistics-ts)/src' },
+    },
+    {
+      name: 'inventory-below-umbrella',
+      severity: 'error',
+      comment: 'inventory (layer 3) must not depend on the umbrella package.',
+      from: { path: 'packages/inventory/src' },
+      to: { path: 'packages/logistics-ts/src' },
     },
   ],
   options: {

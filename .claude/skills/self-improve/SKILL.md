@@ -1,0 +1,200 @@
+---
+description: Learn from mistakes and hard-won successes in logistics-ts. Carries an accumulating list of anti-patterns caught in past reviews so they never recur; runs a root-cause + fix + self-patch workflow when PR/review feedback arrives; and captures durable knowledge (a new/extended skill, AGENTS.md, or memory) after deep work on an under-documented area. Invoke at session start, whenever PR/review/Copilot feedback is presented, and after finishing substantial work in a part of the library that lacks a doc.
+when_to_use: Session start (load Known Patterns); when the user shares PR comments, Copilot findings, or reviewer feedback (run the RCA + self-patch workflow); after finishing deep work in an under-documented area (run Knowledge Capture). Keywords "PR feedback", "review comment", "Copilot", "fix this comment", "what did we learn", "capture this".
+---
+
+# self-improve — logistics-ts
+
+Three modes depending on context:
+
+- **Session start** — load the Known Patterns below so past mistakes are never repeated.
+- **PR / review feedback received** — run the RCA + fix + self-patch workflow.
+- **Finished deep work on an under-documented area** — run the Knowledge Capture Workflow.
+
+This skill is committed to the repo: patterns learned here are shared with every
+contributor and agent. It complements — does not replace — Adam's personal
+cross-repo memory (`~/.claude/.../memory`). See **Where knowledge goes** below.
+
+---
+
+## Known Patterns (always active)
+
+Anti-patterns caught in past reviews of this repo. Never repeat them. This list
+grows via the workflows below — add a bullet the moment a review teaches a durable
+lesson. (Seeded from the invariants in `CLAUDE.md`/`AGENTS.md`; real caught cases
+get appended over time and should name what was caught.)
+
+### The `Explained<T>` contract
+
+- **A domain result must be wrapped, an optional field must be spread-guarded.** Any
+  safety-stock / forecast / classification function returns `Explained<T>` via
+  `explain()`, never a bare number. Because `exactOptionalPropertyTypes` is on, add
+  `warnings`/`citations` with `...(warnings ? { warnings } : {})` — assigning
+  `warnings: undefined` is a type error, not a no-op.
+- **Assert the explanation in tests, not just the value.** `method`, the key
+  `inputs`, and any `warnings` are part of the contract; a test that checks only
+  `value` lets the explanation silently rot.
+
+### Prose must match implementation semantics (recurred 4× in review)
+
+The single most-repeated Copilot finding: `reasoning[]` strings, TSDoc, and module
+docs that describe behavior the code doesn't actually have. Every time you state a
+boundary, a default, or a normalization in words, re-read the code and make them
+agree — a wrong explanation is worse than none in an explainable library.
+
+- **State boundary comparisons exactly.** `abc`'s explanation said "A ≤ aMax%
+  cumulative" but the code classifies on the cumulative share *before* the current
+  item with strict `<`, promoting the straddling item to the higher class. Describe
+  the real rule, including the promotion. (Caught: PR#3 `abc.ts`.)
+- **Describe edge-case returns as they are.** `variance` TSDoc said "zero values for
+  the population form" but the code returns `NaN` for empty population input.
+  (Caught: PR#2 `stats.ts`.)
+- **Don't claim a normalization the record doesn't hold.** `model.ts` doc said
+  Date/ISO inputs are "normalised to epoch-day internally," but the record types
+  store `DateInput` verbatim and loaders preserve `Date | string`. (Caught: PR#2.)
+- **Error messages must name the real category.** `requireColumns` threw "missing
+  *required* column" even when enforcing an explicitly-mapped *optional* column;
+  reword so a misspelled optional mapping isn't reported as a missing required one.
+  (Caught: PR#2 `loader.ts`.)
+
+### API boundary: validate inputs and fail fast (recurred 4×)
+
+A primitive that a power user calls directly must reject nonsensical input with a
+clear error, not compute undefined behavior or silently return an empty/wrong result.
+
+- **Guard degenerate sizes.** `nelderMead` didn't reject an empty initial vector
+  (`n === 0`), then read `simplex[n-1]` and divided by `n`. Reject early. (Caught: PR#2.)
+- **Enforce the contract's domain.** `fromEpochDay` documented a UTC-midnight `Date`
+  but accepted non-integer/non-finite input and returned a non-midnight/invalid Date.
+  An epoch day is an integer — validate it. (Caught: PR#2 `epoch-day.ts`.)
+- **A silently-empty result hides a caller bug.** `bucketize` with `start > end`
+  returned empty `buckets` instead of throwing; a reversed range is almost certainly
+  an error — `throw new RangeError`. (Caught: PR#2 `bucketize.ts`.)
+- **Anchor validation regexes.** The ISO-date regex accepted trailing garbage after
+  `T`/space (`"2026-01-01Txyz"`) despite the comment claiming it was rejected. Make
+  the pattern actually reject what the doc says it does. (Caught: PR#2.)
+
+### Type guards for untrusted JS callers
+
+Exported functions take input from JS callers with no compiler checking — guards must
+validate structurally, not trust a partial shape.
+
+- **Validate every field the code will read.** `isTableSource` checked only
+  `getColumn`/`numRows`, then `normalizeInput` did `new Set(input.columnNames)` and
+  threw on an accidental match lacking `columnNames`. Validate `columnNames` (and its
+  element type) in the guard. (Caught: PR#2 `table-source.ts`.)
+- **Use `Object.hasOwn`, not the `in` operator, for column/key presence** — `in`
+  matches inherited prototype props (mapping a column to `"toString"` passes a bare
+  `in` check). (Caught: PR#2 `table-source.ts`.)
+- **Don't let the first row define the schema.** Detecting columns from row-object
+  input by inspecting only the first row wrongly fails when the first row is sparse
+  but later rows carry the column. Scan enough rows (or all) to establish presence.
+  (Caught: PR#2 `table-source.ts`.)
+
+### Shared mutable state
+
+- **Return a defensive copy of an internal constant, never the shared instance.**
+  `classifyDemandPattern` returned the shared `RECOMMENDED[pattern]` array; a caller
+  mutating it would corrupt every later classification. Return `[...RECOMMENDED[...]]`.
+  (Caught: PR#3 `demand-pattern.ts`.)
+
+### Tooling & scaffolding config
+
+- **Coverage/lint globs must not exclude real code.** The vitest config excluded
+  `packages/*/src/index.ts`, but early-milestone implementations live in `index.ts`,
+  so coverage silently ignored the actual code. Check what a glob excludes against
+  where code actually is. (Caught: PR#1 `vitest.config.ts`.)
+- **Enforcement config, its comments, and the docs must describe the SAME
+  architecture.** The dependency-cruiser rules, their comments, and `AGENTS.md`
+  disagreed on which cross-layer edges were allowed. When you touch any one of a
+  rule / its comment / the doc that describes it, reconcile all three. (Caught: PR#1,
+  `.dependency-cruiser.cjs` + `AGENTS.md`.)
+- **Pin tool versions in CI** to match `packageManager` — `pnpm/action-setup` without
+  a pinned version can install a pnpm newer than `pnpm@9.7.1` and break lockfile
+  reproducibility. (Caught: PR#1 `ci.yml`.)
+
+### Numeric correctness (the product)
+
+- **A test that doesn't pin to an authoritative value proves nothing.** Golden-test
+  against a z-table point, a cited textbook example (name it in the test), or a
+  statsforecast/stockpyl fixture — with a *deliberate, commented* tolerance. A loose
+  tolerance hiding a real disagreement is a failed test dressed as a pass.
+- **State the std convention.** Sample (n−1) is the default; population (n) is
+  opt-in. Mismatching it against a reference is a common golden-test discrepancy —
+  check the reference's convention before loosening tolerance.
+- **Never adopt a maths library on reputation.** Verify accuracy against
+  authoritative values first (`simple-statistics`' `probit` was off ~0.003 and
+  rejected). Never add a runtime dependency to `core`.
+- **Watch the SIGN/direction in an iterative optimizer step.** Nelder–Mead's inside
+  contraction must move *toward* the worst vertex — with a `combine(centroid, worst,
+  coeff)` that computes the reflection direction, the inside contraction needs a
+  *negative* coefficient; a positive one reflects again and can stall convergence.
+  A convergence bug like this passes a "runs without error" test — only a golden test
+  against a known optimum catches it. (Caught: PR#2 `optimize.ts`.)
+
+### Architecture & conventions
+
+- **No import "up" or sideways a layer**, and no runtime dep in `core`. If
+  `deps:check` fails, fix the design — don't relax the rule.
+- **Every export carries TSDoc: formula, units, constraints, `@see` citation,
+  `@example`.** Agents read the `.d.ts` directly; a missing `@example` is a missing
+  feature, not a missing comment.
+- **Never invent a formula, cutoff, or citation.** They come from `research.md` /
+  `plans/v0.1.md`. If one isn't specified and you can't cite it, stop and say so.
+- **Don't hand-format to fight biome** — run `pnpm lint:fix`.
+
+---
+
+## PR / review feedback workflow
+
+When the user shares PR comments, Copilot findings, or reviewer feedback, do NOT
+silently patch. Run all steps:
+
+1. **Fetch & read** every comment in full (use `gh` if a PR number/URL is given).
+2. **Assess validity.** Some review comments are wrong or lower-priority — say so
+   with reasoning rather than complying blindly. Group the valid ones.
+3. **Fix** — for a behavioral/numeric bug, write the failing test first (red), then
+   fix (green). A miscomputed number gets a golden test, not just a code change.
+4. **Root-cause analysis.** For each valid finding ask: *what class of mistake is
+   this, and what would have prevented it?* One comment usually points at a general
+   rule.
+5. **Self-patch.** Add the rule to the right home (see below) so it can't recur —
+   a Known-Patterns bullet here, a line in `CLAUDE.md`/`AGENTS.md`, or a memory.
+   Name the caught case in the bullet.
+6. **Verify** `pnpm check` is green, then **report**: what was valid, what you fixed,
+   the root cause, and exactly which artifact you patched (with the tool call that
+   did it — never claim a patch you didn't make).
+
+---
+
+## Knowledge Capture Workflow
+
+Run after finishing substantial work in an area that lacked a doc. **Gate hard —
+silence is the default.** Only capture knowledge that is durable, non-obvious, and
+not already derivable from the code or an existing doc.
+
+1. **Should this run at all?** If the lesson is obvious from the code, one-off, or
+   already documented — stop.
+2. **Route to the right artifact** (a new skill is rarely the answer):
+   - A recurring *coding* pitfall or convention → a Known-Patterns bullet here.
+   - A cross-cutting rule about how the library is built → a line in `CLAUDE.md` or
+     `AGENTS.md`.
+   - A whole workflow that's missing → extend `implement-algorithm` /
+     `verify-numerics` before creating a new skill.
+3. **Bias toward extending** an existing artifact over creating one.
+4. **Propose, don't silently create** large new docs — this is a shared repo.
+5. **Report** what you captured and where.
+
+---
+
+## Where knowledge goes
+
+- **This skill / `CLAUDE.md` / `AGENTS.md`** (committed) — repo-specific coding
+  anti-patterns, conventions, and invariants. Benefits every contributor and agent.
+- **Adam's personal memory** (`~/.claude/.../memory`, `feedback`-type) — his
+  cross-repo working-style preferences and corrections (e.g. the dependency-accuracy
+  rule, no-coauthor-in-commits). Follow the memory instructions in the system prompt
+  when a lesson is about *how Adam wants you to work*, not about this codebase.
+
+When a lesson is genuinely both (a coding rule Adam also holds across repos), record
+the repo-specific form here and the general form in memory, and cross-reference.

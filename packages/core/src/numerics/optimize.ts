@@ -64,6 +64,16 @@ export function nelderMead(
     simplex.push({ x, fx: f(x) })
   }
 
+  // Shrinks every vertex except the best towards the best vertex.
+  const shrink = () => {
+    const best = simplex[0] as Vertex
+    for (let i = 1; i <= n; i++) {
+      const v = simplex[i] as Vertex
+      const x = v.x.map((xi, j) => (best.x[j] as number) + sigma * (xi - (best.x[j] as number)))
+      simplex[i] = evaluate(f, x)
+    }
+  }
+
   let iterations = 0
   let converged = false
 
@@ -96,19 +106,18 @@ export function nelderMead(
     } else if (reflected.fx < secondWorst.fx) {
       // Reflection is a middling improvement — accept it.
       simplex[n] = reflected
-    } else {
-      // Reflection is poor — contract towards the centroid.
+    } else if (reflected.fx < worst.fx) {
+      // Reflection beat the worst but not the second-worst: OUTSIDE contraction,
+      // between the centroid and the reflection point.
       const contracted = evaluate(f, combine(centroid, worst.x, rho))
-      if (contracted.fx < worst.fx) {
-        simplex[n] = contracted
-      } else {
-        // Contraction failed too — shrink the whole simplex towards the best.
-        for (let i = 1; i <= n; i++) {
-          const v = simplex[i] as Vertex
-          const x = v.x.map((xi, j) => (best.x[j] as number) + sigma * (xi - (best.x[j] as number)))
-          simplex[i] = evaluate(f, x)
-        }
-      }
+      if (contracted.fx <= reflected.fx) simplex[n] = contracted
+      else shrink()
+    } else {
+      // Reflection is no better than the worst vertex: INSIDE contraction,
+      // between the centroid and the worst vertex.
+      const contracted = evaluate(f, combine(centroid, worst.x, -rho))
+      if (contracted.fx < worst.fx) simplex[n] = contracted
+      else shrink()
     }
   }
 
@@ -117,7 +126,13 @@ export function nelderMead(
   return { x: best.x, fx: best.fx, iterations, converged }
 }
 
-/** Reflects the worst point through the centroid by `coefficient`. */
+/**
+ * Moves along the line from the worst vertex through the centroid:
+ * `centroid + coefficient · (centroid − worst)`. Positive coefficients go past
+ * the centroid away from the worst vertex (reflection α=1, expansion 2, outside
+ * contraction 0.5); a negative coefficient moves back towards the worst vertex
+ * (inside contraction −0.5).
+ */
 function combine(
   centroid: readonly number[],
   worst: readonly number[],

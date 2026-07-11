@@ -52,11 +52,11 @@ function isTableSource(input: TableInput): input is TableSource {
 export function normalizeInput(input: TableInput): RowReader {
   if (Array.isArray(input)) {
     const rows = input as RowInput
-    // Homogeneous rows are assumed: the first row defines the column set.
-    const columns = new Set(rows.length > 0 ? Object.keys(rows[0] as object) : [])
     return {
       numRows: rows.length,
-      hasColumn: (name) => columns.has(name),
+      // Scan for the column rather than trusting the first row — rows may be
+      // sparse. `some` short-circuits, so the homogeneous case stays O(1).
+      hasColumn: (name) => rows.some((r) => name in r),
       getCell: (row, column) => (rows[row] as Record<string, unknown> | undefined)?.[column],
     }
   }

@@ -84,6 +84,16 @@ describe('loadDemand — coercion and validation', () => {
     )
   })
 
+  it('does not treat a sparse first row as a missing column', () => {
+    // The first row omits quantity but a later row has it — the column exists.
+    const { records, issues } = loadDemand([
+      { itemId: 'A', date: '2026-01-01' },
+      { itemId: 'A', date: '2026-01-02', quantity: 4 },
+    ])
+    expect(records).toEqual([{ itemId: 'A', date: '2026-01-02', quantity: 4 }])
+    expect(issues).toEqual([{ row: 0, column: 'quantity', problem: 'expected a finite number' }])
+  })
+
   it('throws on the first issue when throwOnIssue is set', () => {
     expect(() =>
       loadDemand([{ itemId: 'A', date: '2026-01-01', quantity: 'x' }], {}, { throwOnIssue: true }),

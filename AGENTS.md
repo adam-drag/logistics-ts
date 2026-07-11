@@ -46,9 +46,13 @@ forecasting or inventory). A package declares a lower-layer dependency in its
 ## Conventions
 
 - **ESM-only**, TypeScript strict. No `any`; prefer precise types.
-- **Every numeric output is wrapped in `Explained<T>`** (from `@logistics-ts/core`):
+- **Every domain result is wrapped in `Explained<T>`** (from `@logistics-ts/core`):
   value + `method` + `inputs` + `reasoning[]` + optional `citations`/`warnings`.
-  This is the core differentiator — do not return bare numbers from public APIs.
+  This is the core differentiator — a *decision-support output* (safety stock, a
+  forecast, a classification) must never be returned as a bare number. This does
+  **not** apply to low-level numeric primitives (`mean`, `variance`,
+  `inverseNormalCdf`, …): those are raw building blocks, exported for power users,
+  and intentionally return plain numbers.
 - **Pure, tree-shakeable functions.** Stateful convenience wrappers (e.g. an
   `InventoryAnalyzer` class) live only in the umbrella package and wrap the pure
   functions; they never hold the source of truth.

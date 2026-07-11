@@ -4,8 +4,10 @@
  * algorithms consume them rather than raw user objects.
  *
  * Dates are treated as **calendar dates**, never instants. A `Date` or an ISO
- * date string (`"2026-01-31"`) is accepted at the boundary and normalised to an
- * integer epoch-day internally (see {@link ./time/epoch-day}).
+ * date string (`"2026-01-31"`) is accepted for a record's date field. Records
+ * preserve whatever `DateInput` you pass; date arithmetic (bucketization,
+ * lead-time spans) converts to an integer epoch-day at computation time — it
+ * does not rewrite the stored value (see {@link ./time/epoch-day}).
  */
 
 /** A date at the API boundary: a `Date` or an ISO `YYYY-MM-DD` string. */

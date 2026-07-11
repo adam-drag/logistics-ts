@@ -32,4 +32,14 @@ describe('fsn', () => {
     // ratio 0.5 < 0.6 → S
     expect(byId(value, 'mid')?.class).toBe('S')
   })
+
+  it('treats a ratio exactly at the default cutoff (0.5) as Fast', () => {
+    const { value } = fsn([series('edge', [1, 1, 0, 0])])
+    // ratio 0.5 >= 0.5 → F
+    expect(byId(value, 'edge')?.class).toBe('F')
+  })
+
+  it('returns an empty result for empty input without throwing', () => {
+    expect(fsn([]).value).toEqual([])
+  })
 })

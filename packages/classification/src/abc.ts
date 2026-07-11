@@ -58,11 +58,14 @@ export function abc(
   const [aMax, bMax] = cutoffs
 
   const metricOf = (item: AbcItem): number => {
-    if (by === 'volume') return item.volume
-    if (item.unitValue === undefined) {
+    if (by === 'value' && item.unitValue === undefined) {
       throw new Error(`abc by 'value' requires unitValue; item "${item.itemId}" has none`)
     }
-    return item.volume * item.unitValue
+    const metric = by === 'volume' ? item.volume : item.volume * (item.unitValue as number)
+    if (!Number.isFinite(metric) || metric < 0) {
+      throw new Error(`abc: item "${item.itemId}" has an invalid ${by} metric (${metric})`)
+    }
+    return metric
   }
 
   const ranked = items
@@ -75,11 +78,16 @@ export function abc(
   let cumulative = 0
   const counts = { A: 0, B: 0, C: 0 }
   for (const { itemId, metric } of ranked) {
-    // Classify by the cumulative share *before* this item, so the item that
-    // straddles a cutoff falls in the higher (more important) class.
-    const cumulativeBefore = total === 0 ? 0 : cumulative / total
-    const cls: AbcClassification['class'] =
-      cumulativeBefore < aMax ? 'A' : cumulativeBefore < bMax ? 'B' : 'C'
+    // With no consumption at all, nothing is a "vital few" — everything is C.
+    // Otherwise classify by the cumulative share *before* this item, so the
+    // item that straddles a cutoff falls in the higher (more important) class.
+    let cls: AbcClassification['class']
+    if (total === 0) {
+      cls = 'C'
+    } else {
+      const cumulativeBefore = cumulative / total
+      cls = cumulativeBefore < aMax ? 'A' : cumulativeBefore < bMax ? 'B' : 'C'
+    }
     cumulative += metric
     const share = total === 0 ? 0 : metric / total
     counts[cls]++
@@ -92,14 +100,17 @@ export function abc(
     })
   }
 
+  const warnings = total === 0 ? ['no consumption across any item; all classified C'] : undefined
+
   return explain(result, {
     method: `abc-by-${by}`,
     inputs: { items: items.length, aMax, bMax, total },
     reasoning: [
       `ranked ${items.length} items by ${by === 'value' ? 'consumption value' : 'volume'}`,
-      `A ≤ ${aMax * 100}% cumulative, B ≤ ${bMax * 100}%, C the remainder`,
+      `A until cumulative share reaches ${aMax * 100}%, then B until ${bMax * 100}%, then C; the item that crosses a cutoff is promoted to the higher class`,
       `${counts.A} A-items, ${counts.B} B-items, ${counts.C} C-items`,
     ],
     citations: ['Silver, Pyke & Thomas (2017), Inventory and Production Management'],
+    ...(warnings ? { warnings } : {}),
   })
 }

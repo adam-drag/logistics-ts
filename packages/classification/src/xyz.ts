@@ -51,8 +51,16 @@ export function xyz(
     const cv = coefficientOfVariation(quantities)
     let cls: XyzClassification['class']
     if (Number.isNaN(cv)) {
+      // CV is undefined either because there is no demand at all, or because
+      // there are fewer than two periods to measure variability across. These
+      // are different situations; classify Z conservatively but say which.
       cls = 'Z'
-      warnings.push(`item "${s.itemId}" has no demand; classified Z`)
+      const hasDemand = quantities.some((q) => q > 0)
+      warnings.push(
+        hasDemand
+          ? `item "${s.itemId}" has fewer than two periods; CV is undefined, classified Z`
+          : `item "${s.itemId}" has no demand; classified Z`,
+      )
     } else {
       cls = cv < xMax ? 'X' : cv < yMax ? 'Y' : 'Z'
     }

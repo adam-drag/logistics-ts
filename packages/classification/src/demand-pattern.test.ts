@@ -28,21 +28,41 @@ describe('classifyDemandPattern (SBC)', () => {
     expect(value.cv2).toBeGreaterThan(0.49)
   })
 
+  it('treats values exactly at a cutoff as the higher band (>=)', () => {
+    // ADI exactly at the cutoff counts as intermittent.
+    const adiBoundary = classifyDemandPattern([0, 5, 0, 5, 0, 5, 0, 5], { adiCutoff: 2 }).value
+    expect(adiBoundary.adi).toBeCloseTo(2, 10)
+    expect(adiBoundary.pattern).toBe('intermittent')
+    // CV² exactly at the cutoff counts as variable.
+    const cv2Boundary = classifyDemandPattern([10, 10, 10, 10], { cv2Cutoff: 0 }).value
+    expect(cv2Boundary.cv2).toBeCloseTo(0, 10)
+    expect(cv2Boundary.pattern).toBe('erratic')
+  })
+
   it('honours custom cutoffs', () => {
     // With a very high ADI cutoff, the sporadic series is treated as frequent.
     const { value } = classifyDemandPattern([0, 5, 0, 0, 5, 0, 5, 0, 0, 5], { adiCutoff: 5 })
     expect(value.pattern).toBe('smooth')
   })
 
-  it('warns when there is no demand', () => {
+  it('warns and recommends no method when there is no demand', () => {
     const { value, warnings } = classifyDemandPattern([0, 0, 0, 0])
     expect(warnings?.[0]).toMatch(/no demand/i)
     expect(value.pattern).toBeDefined()
+    // A dead SKU has nothing to forecast — do not recommend a method.
+    expect(value.recommendedMethods).toEqual([])
   })
 
   it('warns when there is a single demand occurrence', () => {
     const { warnings } = classifyDemandPattern([0, 7, 0, 0])
     expect(warnings?.[0]).toMatch(/fewer than two/i)
+  })
+
+  it('returns a fresh recommendedMethods array each call (no shared mutable state)', () => {
+    const first = classifyDemandPattern([10, 11, 9, 10]).value
+    first.recommendedMethods.push('MUTATED')
+    const second = classifyDemandPattern([10, 11, 9, 10]).value
+    expect(second.recommendedMethods).not.toContain('MUTATED')
   })
 
   it('returns an explanation with method and citation', () => {

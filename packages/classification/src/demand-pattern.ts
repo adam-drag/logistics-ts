@@ -96,8 +96,12 @@ export function classifyDemandPattern(
       ? 'erratic'
       : 'smooth'
 
+  // A series with no demand has no method to recommend; otherwise copy so
+  // callers can't mutate the shared RECOMMENDED constant.
+  const recommendedMethods = nonZero === 0 ? [] : [...RECOMMENDED[pattern]]
+
   return explain(
-    { pattern, adi, cv2, recommendedMethods: RECOMMENDED[pattern] },
+    { pattern, adi, cv2, recommendedMethods },
     {
       method: 'syntetos-boylan-croston',
       inputs: { adi: round(adi), cv2: round(cv2), adiCutoff, cv2Cutoff },
@@ -105,7 +109,9 @@ export function classifyDemandPattern(
         `ADI ${fmt(adi)} ${intermittent ? '≥' : '<'} ${adiCutoff} → ${intermittent ? 'sporadic' : 'frequent'} demand`,
         `CV² ${fmt(cv2)} ${variable ? '≥' : '<'} ${cv2Cutoff} → ${variable ? 'variable' : 'stable'} demand size`,
         `classified as ${pattern}: ${DESCRIPTION[pattern]}`,
-        `suited to ${RECOMMENDED[pattern].join(', ')}`,
+        recommendedMethods.length > 0
+          ? `suited to ${recommendedMethods.join(', ')}`
+          : 'no demand to forecast',
       ],
       citations: ['Syntetos, Boylan & Croston (2005), JORS 56(5)'],
       ...(warnings.length > 0 ? { warnings } : {}),

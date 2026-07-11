@@ -58,4 +58,22 @@ describe('abc validation and options', () => {
     expect(classOf(value, 'A')).toBe('A')
     expect(classOf(value, 'C')).toBe('B')
   })
+
+  it('classifies all items C when there is no consumption at all', () => {
+    const { value, warnings } = abc([
+      { itemId: 'x', volume: 0, unitValue: 5 },
+      { itemId: 'y', volume: 0, unitValue: 5 },
+    ])
+    expect(value.every((r) => r.class === 'C')).toBe(true)
+    expect(warnings?.[0]).toMatch(/no consumption/i)
+  })
+
+  it('throws on a non-finite or negative metric', () => {
+    expect(() => abc([{ itemId: 'x', volume: Number.NaN, unitValue: 5 }])).toThrow(/invalid/i)
+    expect(() => abc([{ itemId: 'x', volume: -1, unitValue: 5 }])).toThrow(/invalid/i)
+  })
+
+  it('returns an empty result for empty input without throwing', () => {
+    expect(abc([]).value).toEqual([])
+  })
 })

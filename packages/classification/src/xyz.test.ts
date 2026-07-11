@@ -32,6 +32,18 @@ describe('xyz', () => {
     expect(warnings?.[0]).toMatch(/no demand/i)
   })
 
+  it('distinguishes a single-period item (undefined CV) from a no-demand item', () => {
+    const { value, warnings } = xyz([series('new', [10])])
+    expect(classOf(value, 'new')).toBe('Z')
+    // The item HAS demand, so the warning must not claim otherwise.
+    expect(warnings?.[0]).toMatch(/fewer than two periods/i)
+    expect(warnings?.[0]).not.toMatch(/no demand/i)
+  })
+
+  it('returns an empty result for empty input without throwing', () => {
+    expect(xyz([]).value).toEqual([])
+  })
+
   it('honours custom cutoffs', () => {
     const { value } = xyz([series('variable', [10, 20, 0, 10])], { cutoffs: [0.9, 1.5] })
     // CV ~0.82 is now below xMax 0.9 → X.

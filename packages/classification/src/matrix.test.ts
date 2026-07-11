@@ -34,4 +34,8 @@ describe('abcXyzMatrix', () => {
     expect(warnings?.some((w) => w.includes('orphan'))).toBe(true)
     expect(warnings?.some((w) => w.includes('ghost'))).toBe(true)
   })
+
+  it('returns an empty result for empty inputs without throwing', () => {
+    expect(abcXyzMatrix([], []).value).toEqual([])
+  })
 })

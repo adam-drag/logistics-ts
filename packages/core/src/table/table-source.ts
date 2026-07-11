@@ -55,8 +55,9 @@ export function normalizeInput(input: TableInput): RowReader {
     return {
       numRows: rows.length,
       // Scan for the column rather than trusting the first row — rows may be
-      // sparse. `some` short-circuits, so the homogeneous case stays O(1).
-      hasColumn: (name) => rows.some((r) => name in r),
+      // sparse. `some` short-circuits, so the homogeneous case stays O(1). Use an
+      // own-property check so inherited members (`toString`, …) are not columns.
+      hasColumn: (name) => rows.some((r) => Object.hasOwn(r, name)),
       getCell: (row, column) => (rows[row] as Record<string, unknown> | undefined)?.[column],
     }
   }

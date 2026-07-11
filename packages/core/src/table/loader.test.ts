@@ -84,6 +84,14 @@ describe('loadDemand — coercion and validation', () => {
     )
   })
 
+  it('does not treat an inherited property name as a column', () => {
+    // 'toString' exists on the prototype but is not an own column, so mapping to
+    // it is a structural error rather than a false positive.
+    expect(() =>
+      loadDemand([{ itemId: 'A', date: '2026-01-01', quantity: 1 }], { quantity: 'toString' }),
+    ).toThrow(/missing required column/i)
+  })
+
   it('does not treat a sparse first row as a missing column', () => {
     // The first row omits quantity but a later row has it — the column exists.
     const { records, issues } = loadDemand([

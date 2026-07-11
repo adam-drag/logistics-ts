@@ -49,6 +49,7 @@ export function nelderMead(
 ): NelderMeadResult {
   const { step = 0.1, maxIterations = 200, tolerance = 1e-8 } = options
   const n = x0.length
+  if (n === 0) throw new Error('nelderMead requires a non-empty initial vector')
 
   // Standard reflection / expansion / contraction / shrink coefficients.
   const alpha = 1

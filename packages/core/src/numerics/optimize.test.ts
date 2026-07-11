@@ -38,6 +38,10 @@ describe('nelderMead', () => {
     expect(result.fx).toBeCloseTo(0, 2)
   })
 
+  it('rejects an empty initial vector', () => {
+    expect(() => nelderMead((x) => x.length, [])).toThrow(/non-empty/i)
+  })
+
   it('respects a penalty that bounds the search', () => {
     // Minimise (α - 2)² but constrain α ≤ 1 via a penalty; optimum sits at 1.
     const f = (x: readonly number[]) => {

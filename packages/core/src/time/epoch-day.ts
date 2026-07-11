@@ -9,9 +9,11 @@ import type { DateInput } from '../model'
 
 const MS_PER_DAY = 86_400_000
 // A calendar date, optionally followed by a time part ("2026-01-31T09:30:00Z").
-// Anything else after the date (e.g. a malformed CSV cell "2026-01-019") is
-// rejected rather than silently truncated.
-const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})(?:[T\s].*)?$/
+// The time, if present, must itself be time-shaped (HH:MM[:SS[.sss]][Z|±HH:MM]);
+// anything else after the date (e.g. "2026-01-019" or "2026-01-01Txyz") is
+// rejected rather than silently truncated to the calendar date.
+const ISO_DATE =
+  /^(\d{4})-(\d{2})-(\d{2})(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/
 
 /**
  * Converts a {@link DateInput} to an integer epoch day (days since 1970-01-01,

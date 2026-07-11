@@ -41,10 +41,12 @@ export interface RowReader {
 }
 
 function isTableSource(input: TableInput): input is TableSource {
+  const candidate = input as TableSource
   return (
     !Array.isArray(input) &&
-    typeof (input as TableSource).getColumn === 'function' &&
-    typeof (input as TableSource).numRows === 'number'
+    typeof candidate.getColumn === 'function' &&
+    typeof candidate.numRows === 'number' &&
+    Array.isArray(candidate.columnNames)
   )
 }
 

@@ -14,8 +14,8 @@ export function mean(values: readonly number[]): number {
 
 /**
  * Variance. Sample (n − 1) by default; population (n) when `population` is true.
- * Returns `NaN` when fewer than two values are given for the sample form, or
- * zero values for the population form.
+ * Returns `NaN` for the sample form given fewer than two values, and for the
+ * population form given an empty input.
  */
 export function variance(values: readonly number[], population = false): number {
   const n = values.length

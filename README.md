@@ -6,7 +6,6 @@
 
 > [!WARNING]
 > **Under active development — pre-1.0.** The public API is not yet stable.
-> Follow the roadmap in [`plans/v0.1.md`](plans/v0.1.md).
 
 ## Why
 

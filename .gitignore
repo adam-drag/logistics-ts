@@ -6,3 +6,8 @@ dist/
 
 # Local agent/editor config
 .claude/
+
+# Private internal planning/research docs — kept local, not published
+concept.md
+research.md
+plans/

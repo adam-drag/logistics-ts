@@ -25,6 +25,13 @@ describe('toEpochDay', () => {
     expect(() => toEpochDay('2026-02-30')).toThrow()
     expect(() => toEpochDay(new Date('nonsense'))).toThrow()
   })
+
+  it('accepts a trailing time part but rejects other trailing garbage', () => {
+    expect(toEpochDay('2026-01-01T23:59:59Z')).toBe(toEpochDay('2026-01-01'))
+    expect(toEpochDay('2026-01-01 12:00:00')).toBe(toEpochDay('2026-01-01'))
+    expect(() => toEpochDay('2026-01-019')).toThrow()
+    expect(() => toEpochDay('2026-01-01x')).toThrow()
+  })
 })
 
 describe('fromEpochDay / formatEpochDay', () => {

@@ -5,7 +5,7 @@
  * demand are present as explicit zeros rather than missing rows.
  */
 import type { DateInput, DemandRecord } from '../model'
-import { formatEpochDay, isoWeekday, toEpochDay } from './epoch-day'
+import { formatEpochDay, fromEpochDay, isoWeekday, toEpochDay } from './epoch-day'
 
 /** Time granularity for bucketization. */
 export type Granularity = 'day' | 'week' | 'month'
@@ -52,7 +52,7 @@ function bucketKey(epochDay: number, granularity: Granularity): number {
     case 'week':
       return epochDay - isoWeekday(epochDay)
     case 'month': {
-      const d = new Date(epochDay * 86_400_000)
+      const d = fromEpochDay(epochDay)
       return d.getUTCFullYear() * 12 + d.getUTCMonth()
     }
   }

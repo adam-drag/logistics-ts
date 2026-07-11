@@ -116,3 +116,70 @@ describe('loadStock / loadLeadTimes', () => {
     expect(records.map((r) => r.leadTimeDays)).toEqual([14, 21])
   })
 })
+
+describe('empty input', () => {
+  it('loads zero records from an empty row array instead of throwing', () => {
+    expect(loadDemand([])).toEqual({ records: [], issues: [] })
+    expect(loadStock([])).toEqual({ records: [], issues: [] })
+    expect(loadLeadTimes([])).toEqual({ records: [], issues: [] })
+  })
+
+  it('loads zero records from empty columnar input', () => {
+    expect(loadDemand({ itemId: [], date: [], quantity: [] })).toEqual({
+      records: [],
+      issues: [],
+    })
+    expect(loadDemand({})).toEqual({ records: [], issues: [] })
+  })
+})
+
+describe('optional-column validation', () => {
+  it('keeps the row but records an issue for a non-numeric optional unitPrice', () => {
+    const { records, issues } = loadDemand([
+      { itemId: 'A', date: '2026-01-01', quantity: 1, unitPrice: 'abc' },
+    ])
+    expect(records).toEqual([{ itemId: 'A', date: '2026-01-01', quantity: 1 }])
+    expect(issues).toEqual([{ row: 0, column: 'unitPrice', problem: 'expected a finite number' }])
+  })
+
+  it('rejects a negative optional unitPrice / unitCost', () => {
+    const demand = loadDemand([{ itemId: 'A', date: '2026-01-01', quantity: 1, unitPrice: -5 }])
+    expect(demand.records[0]).toEqual({ itemId: 'A', date: '2026-01-01', quantity: 1 })
+    expect(demand.issues).toEqual([
+      { row: 0, column: 'unitPrice', problem: 'must not be negative' },
+    ])
+
+    const stock = loadStock([{ itemId: 'A', quantity: 10, unitCost: -1 }])
+    expect(stock.records[0]).toEqual({ itemId: 'A', quantity: 10 })
+    expect(stock.issues).toEqual([{ row: 0, column: 'unitCost', problem: 'must not be negative' }])
+  })
+
+  it('records an issue for an unparseable optional date', () => {
+    const { records, issues } = loadStock([{ itemId: 'A', quantity: 10, timestamp: 'not-a-date' }])
+    expect(records).toEqual([{ itemId: 'A', quantity: 10 }])
+    expect(issues.map((i) => i.column)).toEqual(['timestamp'])
+  })
+
+  it('does not report absent optional cells as issues', () => {
+    const { records, issues } = loadDemand([
+      { itemId: 'A', date: '2026-01-01', quantity: 1, unitPrice: '' },
+    ])
+    expect(records).toEqual([{ itemId: 'A', date: '2026-01-01', quantity: 1 }])
+    expect(issues).toEqual([])
+  })
+
+  it('throws on a mapped optional column that does not exist (structural error)', () => {
+    expect(() =>
+      loadDemand([{ sku: 'A', date: '2026-01-01', quantity: 1 }], {
+        itemId: 'sku',
+        unitPrice: 'price_typo',
+      }),
+    ).toThrow(/missing required column.*price_typo/i)
+  })
+
+  it('does not require unmapped optional columns', () => {
+    const { records, issues } = loadDemand([{ itemId: 'A', date: '2026-01-01', quantity: 1 }])
+    expect(records).toHaveLength(1)
+    expect(issues).toEqual([])
+  })
+})

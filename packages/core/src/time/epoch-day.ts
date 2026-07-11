@@ -8,12 +8,16 @@
 import type { DateInput } from '../model'
 
 const MS_PER_DAY = 86_400_000
-const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})/
+// A calendar date, optionally followed by a time part ("2026-01-31T09:30:00Z").
+// Anything else after the date (e.g. a malformed CSV cell "2026-01-019") is
+// rejected rather than silently truncated.
+const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})(?:[T\s].*)?$/
 
 /**
  * Converts a {@link DateInput} to an integer epoch day (days since 1970-01-01,
- * UTC). ISO strings are read by their calendar `YYYY-MM-DD` prefix; `Date`
- * values are read by their UTC year/month/day. Throws on an unparseable value.
+ * UTC). ISO strings are read by their calendar `YYYY-MM-DD` part (a trailing
+ * time part is accepted and ignored); `Date` values are read by their UTC
+ * year/month/day. Throws on an unparseable value.
  */
 export function toEpochDay(input: DateInput): number {
   if (input instanceof Date) {

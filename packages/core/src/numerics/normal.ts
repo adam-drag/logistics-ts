@@ -27,7 +27,12 @@ function erf(x: number): number {
   return sign * y
 }
 
-/** Standard-normal cumulative distribution function, Φ(z). */
+/**
+ * Standard-normal cumulative distribution function, Φ(z). Accuracy follows the
+ * underlying erf approximation — absolute error ≈ 1.5 × 10⁻⁷, coarser than
+ * {@link inverseNormalCdf}'s 1.15 × 10⁻⁹ and inherited by
+ * {@link normalLossFunction}.
+ */
 export function normalCdf(z: number): number {
   return 0.5 * (1 + erf(z / Math.SQRT2))
 }

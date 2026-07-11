@@ -3,14 +3,20 @@
  * column mapping, coercing CSV-style string cells and collecting per-row
  * validation issues rather than throwing on the first bad row.
  *
- * Structural problems (a required column missing entirely) throw immediately —
- * that is a configuration mistake. Per-row data problems (a non-numeric
- * quantity, an unparseable date) are collected as {@link LoadIssue}s and the
- * offending row is skipped, unless `throwOnIssue` is set.
+ * Structural problems throw immediately — that is a configuration mistake. A
+ * structural problem is a required column missing entirely, or a column the
+ * caller explicitly named in the mapping that does not exist in the input.
+ * (Empty input is not structural: it loads as zero records.)
+ *
+ * Per-row data problems are collected as {@link LoadIssue}s, unless
+ * `throwOnIssue` is set. An invalid **required** field (a non-numeric quantity,
+ * an unparseable date) skips the row; an invalid **optional** field (a
+ * non-numeric unit price) keeps the row and omits the field — but is still
+ * recorded as an issue. A genuinely absent optional cell is not an issue.
  */
 import type { DemandRecord, LeadTimeRecord, StockRecord } from '../model'
 import { toEpochDay } from '../time/epoch-day'
-import { type TableInput, normalizeInput } from './table-source'
+import { type RowReader, type TableInput, normalizeInput } from './table-source'
 
 /** A single per-row validation problem. */
 export interface LoadIssue {
@@ -111,6 +117,11 @@ function raise(ctx: FieldContext, column: string, problem: string): undefined {
   return undefined
 }
 
+/** Whether a cell is genuinely absent (as opposed to present but invalid). */
+function isAbsent(value: unknown): boolean {
+  return value === null || value === undefined || (typeof value === 'string' && value.trim() === '')
+}
+
 /** Reads a required non-negative finite number; records an issue on failure. */
 function requireQuantity(value: unknown, column: string, ctx: FieldContext): number | undefined {
   const n = toNumberCell(value)
@@ -119,10 +130,43 @@ function requireQuantity(value: unknown, column: string, ctx: FieldContext): num
   return n
 }
 
+/** Reads an optional non-negative finite number; a present-but-invalid cell is an issue. */
+function optionalNumber(value: unknown, column: string, ctx: FieldContext): number | undefined {
+  if (isAbsent(value)) return undefined
+  return requireQuantity(value, column, ctx)
+}
+
+/** Reads an optional calendar date; a present-but-invalid cell is an issue. */
+function optionalDate(
+  value: unknown,
+  column: string,
+  ctx: FieldContext,
+): Date | string | undefined {
+  if (isAbsent(value)) return undefined
+  const date = toDateCell(value)
+  if (date === null) return raise(ctx, column, 'expected a calendar date (Date or ISO YYYY-MM-DD)')
+  return date
+}
+
+/** Reads an optional string; a present-but-invalid cell is an issue. */
+function optionalString(value: unknown, column: string, ctx: FieldContext): string | undefined {
+  if (isAbsent(value)) return undefined
+  const s = toStringCell(value)
+  if (s === null) return raise(ctx, column, 'expected a string')
+  return s
+}
+
 // --- Structural check -----------------------------------------------------
 
-function requireColumns(reader: { hasColumn(name: string): boolean }, columns: string[]): void {
-  const missing = columns.filter((c) => !reader.hasColumn(c))
+/**
+ * Throws when a listed column is absent from the input. Callers pass the
+ * required columns plus any *explicitly mapped* optional columns (`undefined`
+ * entries — unmapped optionals — are ignored). Skipped for empty input, which
+ * has no rows to prove any column with.
+ */
+function requireColumns(reader: RowReader, columns: ReadonlyArray<string | undefined>): void {
+  if (reader.numRows === 0) return
+  const missing = columns.filter((c): c is string => c !== undefined && !reader.hasColumn(c))
   if (missing.length > 0) {
     throw new Error(`Input is missing required column(s): ${missing.join(', ')}`)
   }
@@ -144,7 +188,13 @@ export function loadDemand(
     locationId: mapping.locationId ?? 'locationId',
     unitPrice: mapping.unitPrice ?? 'unitPrice',
   }
-  requireColumns(reader, [col.itemId, col.date, col.quantity])
+  requireColumns(reader, [
+    col.itemId,
+    col.date,
+    col.quantity,
+    mapping.locationId,
+    mapping.unitPrice,
+  ])
 
   const throwOnIssue = options.throwOnIssue ?? false
   const records: DemandRecord[] = []
@@ -167,10 +217,10 @@ export function loadDemand(
     if (quantity === undefined) continue
 
     const record: DemandRecord = { itemId, date, quantity }
-    const locationId = toStringCell(reader.getCell(row, col.locationId))
-    if (locationId !== null) record.locationId = locationId
-    const unitPrice = toNumberCell(reader.getCell(row, col.unitPrice))
-    if (unitPrice !== null) record.unitPrice = unitPrice
+    const locationId = optionalString(reader.getCell(row, col.locationId), col.locationId, ctx)
+    if (locationId !== undefined) record.locationId = locationId
+    const unitPrice = optionalNumber(reader.getCell(row, col.unitPrice), col.unitPrice, ctx)
+    if (unitPrice !== undefined) record.unitPrice = unitPrice
     records.push(record)
   }
 
@@ -191,7 +241,13 @@ export function loadStock(
     unitCost: mapping.unitCost ?? 'unitCost',
     timestamp: mapping.timestamp ?? 'timestamp',
   }
-  requireColumns(reader, [col.itemId, col.quantity])
+  requireColumns(reader, [
+    col.itemId,
+    col.quantity,
+    mapping.locationId,
+    mapping.unitCost,
+    mapping.timestamp,
+  ])
 
   const throwOnIssue = options.throwOnIssue ?? false
   const records: StockRecord[] = []
@@ -209,12 +265,12 @@ export function loadStock(
     if (quantity === undefined) continue
 
     const record: StockRecord = { itemId, quantity }
-    const locationId = toStringCell(reader.getCell(row, col.locationId))
-    if (locationId !== null) record.locationId = locationId
-    const unitCost = toNumberCell(reader.getCell(row, col.unitCost))
-    if (unitCost !== null) record.unitCost = unitCost
-    const timestamp = toDateCell(reader.getCell(row, col.timestamp))
-    if (timestamp !== null) record.timestamp = timestamp
+    const locationId = optionalString(reader.getCell(row, col.locationId), col.locationId, ctx)
+    if (locationId !== undefined) record.locationId = locationId
+    const unitCost = optionalNumber(reader.getCell(row, col.unitCost), col.unitCost, ctx)
+    if (unitCost !== undefined) record.unitCost = unitCost
+    const timestamp = optionalDate(reader.getCell(row, col.timestamp), col.timestamp, ctx)
+    if (timestamp !== undefined) record.timestamp = timestamp
     records.push(record)
   }
 
@@ -233,7 +289,7 @@ export function loadLeadTimes(
     leadTimeDays: mapping.leadTimeDays ?? 'leadTimeDays',
     date: mapping.date ?? 'date',
   }
-  requireColumns(reader, [col.itemId, col.leadTimeDays])
+  requireColumns(reader, [col.itemId, col.leadTimeDays, mapping.date])
 
   const throwOnIssue = options.throwOnIssue ?? false
   const records: LeadTimeRecord[] = []
@@ -255,8 +311,8 @@ export function loadLeadTimes(
     if (leadTimeDays === undefined) continue
 
     const record: LeadTimeRecord = { itemId, leadTimeDays }
-    const date = toDateCell(reader.getCell(row, col.date))
-    if (date !== null) record.date = date
+    const date = optionalDate(reader.getCell(row, col.date), col.date, ctx)
+    if (date !== undefined) record.date = date
     records.push(record)
   }
 

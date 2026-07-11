@@ -1,0 +1,46 @@
+name: Bug report
+description: Report incorrect behaviour or a wrong numeric result
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. For **security** issues, do not use this form —
+        see [SECURITY.md](../blob/main/SECURITY.md).
+  - type: input
+    id: package
+    attributes:
+      label: Package and version
+      description: e.g. "@logistics-ts/classification@0.0.1"
+      placeholder: "@logistics-ts/…@0.0.x"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you observe, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Minimal code and inputs that reproduce the problem. Paste inputs, not screenshots.
+      render: ts
+    validations:
+      required: true
+  - type: textarea
+    id: expected-value
+    attributes:
+      label: Expected value / reference
+      description: If this is a numeric-correctness issue, cite the expected value and its source (textbook, statsforecast, etc.) if you can.
+    validations:
+      required: false
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: Node version, OS, bundler (if relevant).
+    validations:
+      required: false

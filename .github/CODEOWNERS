@@ -1,0 +1,6 @@
+# Code owners for logistics-ts.
+# These owners are requested for review on any matching change, and — with the
+# "require review from Code Owners" ruleset — must approve before merge.
+
+# Default owner for everything in the repo.
+*       @adam-drag

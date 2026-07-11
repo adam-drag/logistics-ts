@@ -50,6 +50,11 @@ describe('fromEpochDay / formatEpochDay', () => {
   it('returns a UTC-midnight Date', () => {
     expect(fromEpochDay(0).toISOString()).toBe('1970-01-01T00:00:00.000Z')
   })
+
+  it('rejects non-integer epoch days', () => {
+    expect(() => fromEpochDay(1.5)).toThrow(/integer/i)
+    expect(() => fromEpochDay(Number.NaN)).toThrow(/integer/i)
+  })
 })
 
 describe('isoWeekday', () => {

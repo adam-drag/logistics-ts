@@ -93,6 +93,12 @@ export function bucketize(
   const rangeEnd =
     options.end !== undefined ? bucketKey(toEpochDay(options.end), granularity) : undefined
 
+  if (rangeStart !== undefined && rangeEnd !== undefined && rangeStart > rangeEnd) {
+    throw new RangeError(
+      `bucketize range start (${String(options.start)}) must not be after end (${String(options.end)})`,
+    )
+  }
+
   // Aggregate quantities into a key→quantity map per item, tracking each item's
   // observed key span for the default (per-item) range.
   const perItem = new Map<string, { totals: Map<number, number>; min: number; max: number }>()

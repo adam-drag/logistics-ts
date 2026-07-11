@@ -168,7 +168,9 @@ function requireColumns(reader: RowReader, columns: ReadonlyArray<string | undef
   if (reader.numRows === 0) return
   const missing = columns.filter((c): c is string => c !== undefined && !reader.hasColumn(c))
   if (missing.length > 0) {
-    throw new Error(`Input is missing required column(s): ${missing.join(', ')}`)
+    // "expected" rather than "required": the list includes explicitly mapped
+    // optional columns, so a misspelled optional mapping lands here too.
+    throw new Error(`Input is missing expected column(s): ${missing.join(', ')}`)
   }
 }
 

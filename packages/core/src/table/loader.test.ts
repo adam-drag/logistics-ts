@@ -80,7 +80,7 @@ describe('loadDemand — coercion and validation', () => {
 
   it('throws on a missing required column (structural error)', () => {
     expect(() => loadDemand([{ itemId: 'A', date: '2026-01-01' }])).toThrow(
-      /missing required column/i,
+      /missing expected column/i,
     )
   })
 
@@ -89,7 +89,7 @@ describe('loadDemand — coercion and validation', () => {
     // it is a structural error rather than a false positive.
     expect(() =>
       loadDemand([{ itemId: 'A', date: '2026-01-01', quantity: 1 }], { quantity: 'toString' }),
-    ).toThrow(/missing required column/i)
+    ).toThrow(/missing expected column/i)
   })
 
   it('does not treat a sparse first row as a missing column', () => {
@@ -182,7 +182,7 @@ describe('optional-column validation', () => {
         itemId: 'sku',
         unitPrice: 'price_typo',
       }),
-    ).toThrow(/missing required column.*price_typo/i)
+    ).toThrow(/missing expected column.*price_typo/i)
   })
 
   it('does not require unmapped optional columns', () => {

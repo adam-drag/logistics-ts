@@ -54,6 +54,13 @@ describe('bucketize ranges and items', () => {
     expect(qty(series!)).toEqual([0, 9, 0, 0])
   })
 
+  it('throws when the explicit range is reversed (start after end)', () => {
+    const records: DemandRecord[] = [{ itemId: 'A', date: '2026-02-01', quantity: 9 }]
+    expect(() => bucketize(records, 'month', { start: '2026-04-01', end: '2026-01-01' })).toThrow(
+      /must not be after/i,
+    )
+  })
+
   it('returns one independent, itemId-sorted series per item', () => {
     const records: DemandRecord[] = [
       { itemId: 'B', date: '2026-01-01', quantity: 1 },

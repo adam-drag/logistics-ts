@@ -42,8 +42,15 @@ export function toEpochDay(input: DateInput): number {
   return Math.floor(utc / MS_PER_DAY)
 }
 
-/** Converts an epoch day back to a UTC-midnight `Date`. */
+/**
+ * Converts an epoch day back to a UTC-midnight `Date`. An epoch day is an
+ * integer count of days; a non-integer input is rejected so the midnight
+ * contract holds.
+ */
 export function fromEpochDay(epochDay: number): Date {
+  if (!Number.isInteger(epochDay)) {
+    throw new RangeError(`Epoch day must be an integer, got ${epochDay}`)
+  }
   return new Date(epochDay * MS_PER_DAY)
 }
 

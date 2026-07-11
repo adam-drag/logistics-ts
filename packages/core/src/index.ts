@@ -1,32 +1,76 @@
 /**
- * @logistics-ts/core — foundational types and utilities.
+ * @logistics-ts/core — foundational types, data loading, time bucketization,
+ * shared numerics, and synthetic data for the logistics-ts toolkit.
  *
- * M0 scaffold: this package currently exposes only the cross-cutting
- * {@link Explained} result wrapper. The data model, column store, loader, and
- * shared numerics land in M1 (see plans/v0.1.md).
+ * See plans/v0.1.md for the roadmap. This package has no runtime dependencies.
  */
 
-/**
- * A computed result paired with a machine-readable explanation of how it was
- * derived. Every numeric output in logistics-ts is wrapped in this so that
- * humans — and AI agents — can see the method, the inputs, and the reasoning.
- */
-export interface Explained<T> {
-  /** The computed value. */
-  value: T
-  /** Identifier of the method used, e.g. `"king-formula"`. */
-  method: string
-  /** Every input value that fed the computation, keyed by name. */
-  inputs: Record<string, number | string>
-  /** Human- and agent-readable bullet points explaining the result. */
-  reasoning: string[]
-  /** Optional literature citations backing the method. */
-  citations?: string[]
-  /** Optional caveats, e.g. low sample size or undefined-metric conditions. */
-  warnings?: string[]
-}
+// Result wrapper
+export { type Explained, type Explanation, explain } from './explained'
 
-/** Constructs an {@link Explained} result. */
-export function explain<T>(value: T, meta: Omit<Explained<T>, 'value'>): Explained<T> {
-  return { value, ...meta }
-}
+// Data model
+export type { DateInput, DemandRecord, StockRecord, LeadTimeRecord } from './model'
+
+// Tabular input + loaders
+export type {
+  TableSource,
+  TableInput,
+  RowInput,
+  ColumnarInput,
+} from './table/table-source'
+export {
+  type LoadIssue,
+  type LoadResult,
+  type LoadOptions,
+  type DemandColumnMap,
+  type StockColumnMap,
+  type LeadTimeColumnMap,
+  loadDemand,
+  loadStock,
+  loadLeadTimes,
+} from './table/loader'
+
+// Time
+export {
+  toEpochDay,
+  fromEpochDay,
+  formatEpochDay,
+  isoWeekday,
+} from './time/epoch-day'
+export {
+  type Granularity,
+  type DemandBucket,
+  type DemandSeries,
+  type BucketizeOptions,
+  bucketize,
+} from './time/bucketize'
+
+// Numerics
+export {
+  mean,
+  variance,
+  standardDeviation,
+  coefficientOfVariation,
+  squaredCvOfNonZero,
+  averageDemandInterval,
+} from './numerics/stats'
+export {
+  normalPdf,
+  normalCdf,
+  inverseNormalCdf,
+  normalLossFunction,
+} from './numerics/normal'
+export {
+  type Objective,
+  type NelderMeadOptions,
+  type NelderMeadResult,
+  nelderMead,
+} from './numerics/optimize'
+
+// Synthetic data
+export {
+  type DemandProfile,
+  type GenerateOptions,
+  type ExampleDataset,
+  generateExampleData,
+} from './synthetic/generate'

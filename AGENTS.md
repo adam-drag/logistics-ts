@@ -1,7 +1,8 @@
 # AGENTS.md
 
 Guidance for AI agents and contributors working in the `logistics-ts` monorepo.
-This file grows with each milestone; today it covers the M0 scaffold.
+This file grows with each milestone. Done so far: M0 scaffold, M1 core (data
+model, loaders, time bucketization, numerics, synthetic data).
 
 ## What this project is
 
@@ -14,10 +15,10 @@ inventory features on top of. Roadmap: [`plans/v0.1.md`](plans/v0.1.md).
 
 ```
 packages/
-  core/            @logistics-ts/core           — types, column store, numerics, Explained<>
-  forecasting/     @logistics-ts/forecasting    — forecasting methods + metrics
-  classification/  @logistics-ts/classification — ABC/XYZ/FSN/SBC
-  inventory/       @logistics-ts/inventory      — safety stock, ROP, EOQ, coverage, issues
+  core/            @logistics-ts/core           — model, loaders, bucketize, numerics, synthetic, Explained<>
+  forecasting/     @logistics-ts/forecasting    — forecasting methods + metrics (stub → M3)
+  classification/  @logistics-ts/classification — ABC/XYZ/FSN/SBC (stub → M2)
+  inventory/       @logistics-ts/inventory      — safety stock, ROP, EOQ, coverage, issues (stub → M4)
   logistics-ts/    logistics-ts                 — umbrella re-export (published entry point)
 plans/             milestone plans
 concept.md         original product concept
@@ -56,6 +57,12 @@ forecasting or inventory). A package declares a lower-layer dependency in its
 - Cross-package imports resolve to **source** in dev via the `exports`→`src`
   pattern; `publishConfig.exports` swaps to `dist` at publish time. Do not add
   `tsconfig` `paths` for this — it breaks the dts build.
+- **`core` stays zero-runtime-dependency.** A numeric primitive that is simple
+  and verifiable is hand-rolled and pinned with golden tests against authoritative
+  values (e.g. `inverseNormalCdf` is tested at 15 z-table points across both
+  tails). Reach for a dependency only when the maths is genuinely tricky *and* a
+  trusted library is also **accurate** — verify accuracy first (`simple-statistics`'
+  `probit`, for instance, is off by ~0.003 and was rejected on those grounds).
 
 ## Local workflow
 

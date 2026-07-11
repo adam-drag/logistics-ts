@@ -2,7 +2,8 @@
 
 Guidance for AI agents and contributors working in the `logistics-ts` monorepo.
 This file grows with each milestone. Done so far: M0 scaffold, M1 core (data
-model, loaders, time bucketization, numerics, synthetic data).
+model, loaders, time bucketization, numerics, synthetic data), M2 classification
+(ABC, XYZ, FSN, ABC-XYZ matrix, SBC demand pattern).
 
 ## What this project is
 
@@ -17,7 +18,7 @@ inventory features on top of. Roadmap: [`plans/v0.1.md`](plans/v0.1.md).
 packages/
   core/            @logistics-ts/core           — model, loaders, bucketize, numerics, synthetic, Explained<>
   forecasting/     @logistics-ts/forecasting    — forecasting methods + metrics (stub → M3)
-  classification/  @logistics-ts/classification — ABC/XYZ/FSN/SBC (stub → M2)
+  classification/  @logistics-ts/classification — ABC/XYZ/FSN/matrix/SBC demand pattern
   inventory/       @logistics-ts/inventory      — safety stock, ROP, EOQ, coverage, issues (stub → M4)
   logistics-ts/    logistics-ts                 — umbrella re-export (published entry point)
 plans/             milestone plans

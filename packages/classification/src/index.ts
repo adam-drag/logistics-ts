@@ -1,9 +1,34 @@
 /**
  * @logistics-ts/classification — inventory and demand classification.
  *
- * M0 scaffold: ABC, XYZ, FSN, the ABC-XYZ matrix, and the SBC demand-pattern
- * classifier land in M2 (see plans/v0.1.md).
+ * ABC (value), XYZ (variability), FSN (movement), the ABC-XYZ policy matrix, and
+ * the Syntetos–Boylan–Croston demand-pattern classifier that drives forecasting
+ * method selection. Every classifier returns an `Explained` result.
  */
-
-/** Package identifier, used for scaffold smoke tests. */
-export const PACKAGE_NAME = '@logistics-ts/classification'
+export {
+  type AbcItem,
+  type AbcOptions,
+  type AbcClassification,
+  abc,
+} from './abc'
+export {
+  type XyzOptions,
+  type XyzClassification,
+  xyz,
+} from './xyz'
+export {
+  type FsnOptions,
+  type FsnClassification,
+  fsn,
+} from './fsn'
+export {
+  type AbcXyzClass,
+  type AbcXyzCell,
+  abcXyzMatrix,
+} from './matrix'
+export {
+  type DemandPattern,
+  type DemandPatternOptions,
+  type DemandPatternResult,
+  classifyDemandPattern,
+} from './demand-pattern'

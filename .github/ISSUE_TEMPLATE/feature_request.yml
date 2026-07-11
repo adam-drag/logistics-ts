@@ -1,0 +1,30 @@
+name: Feature request
+description: Suggest an algorithm, method, or capability
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please check [`concept.md`](../blob/main/concept.md) non-goals and the
+        [roadmap](../blob/main/plans/v0.1.md) first — some things are
+        deliberately out of scope.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / use case
+      description: What supply-chain problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed API or method
+      description: The function, its inputs/outputs, and — for an algorithm — a literature reference if one exists.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false

@@ -16,7 +16,7 @@ inputs, reasoning, and citations behind it — because the primary consumers are
 humans and AI agents reading the types and TSDoc directly.
 
 pnpm monorepo. ESM-only, TypeScript strict. Status: M0 scaffold, M1 core, M2
-classification done. **Next: M3 forecasting, M4 inventory** (both are stubs today).
+classification, M3 forecasting done. **Next: M4 inventory** (still a stub today).
 
 ## Session start
 
@@ -29,7 +29,7 @@ never repeated, whatever the session's task.
 ```
 core            @logistics-ts/core            model, loaders, bucketize, numerics, synthetic, Explained<>
 classification  @logistics-ts/classification  ABC/XYZ/FSN/matrix/SBC          -> core
-forecasting     @logistics-ts/forecasting      MA/SES/Holt/HW/Croston/SBA/TSB/auto  -> core, classification  (M3 stub)
+forecasting     @logistics-ts/forecasting      MA/SES/Holt/HW/Croston/SBA/TSB/auto  -> core, classification
 inventory       @logistics-ts/inventory        safety stock/ROP/EOQ/coverage/issues -> core, classification, forecasting  (M4 stub)
 logistics-ts    logistics-ts                  umbrella re-export + InventoryAnalyzer + ships skills/
 ```

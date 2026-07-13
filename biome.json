@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "ignore": ["dist/**", "node_modules/**", "coverage/**", "*.md"]
+    "ignore": ["dist/**", "node_modules/**", "coverage/**", "*.md", "fixtures/*.json"]
   },
   "organizeImports": {
     "enabled": true
@@ -34,6 +34,10 @@
       "style": {
         "useNamingConvention": "off",
         "noNonNullAssertion": "warn"
+      },
+      "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedVariables": "error"
       }
     }
   },

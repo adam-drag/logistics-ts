@@ -37,6 +37,9 @@ importers:
 
   packages/forecasting:
     dependencies:
+      '@logistics-ts/classification':
+        specifier: workspace:*
+        version: link:../classification
       '@logistics-ts/core':
         specifier: workspace:*
         version: link:../core

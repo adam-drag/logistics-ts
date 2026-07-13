@@ -60,7 +60,7 @@ export interface BacktestResult {
  * @example
  * ```ts
  * // one-step naive (last value) backtest
- * backtest([1, 2, 3, 4, 5, 6], (t, h) => Array(h).fill(t.at(-1))).value.mae
+ * backtest([1, 2, 3, 4, 5, 6], (t, h) => Array<number>(h).fill(t.at(-1) ?? Number.NaN)).value.mae
  * ```
  */
 export function backtest(

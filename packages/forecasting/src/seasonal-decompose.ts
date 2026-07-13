@@ -72,17 +72,19 @@ export function seasonalDecompose(
     const tr = trend[t] as number
     return Number.isNaN(tr) ? Number.NaN : multiplicative ? y / tr : y - tr
   })
-  const bucketSums = new Array(m).fill(0)
-  const bucketCounts = new Array(m).fill(0)
+  const bucketSums = new Array<number>(m).fill(0)
+  const bucketCounts = new Array<number>(m).fill(0)
   detrended.forEach((d, t) => {
     if (!Number.isNaN(d)) {
-      bucketSums[t % m] += d
-      bucketCounts[t % m]++
+      const k = t % m
+      bucketSums[k] = (bucketSums[k] as number) + d
+      bucketCounts[k] = (bucketCounts[k] as number) + 1
     }
   })
-  const rawIndices = bucketSums.map((s, i) =>
-    bucketCounts[i] > 0 ? s / bucketCounts[i] : multiplicative ? 1 : 0,
-  )
+  const rawIndices = bucketSums.map((s, i) => {
+    const count = bucketCounts[i] as number
+    return count > 0 ? s / count : multiplicative ? 1 : 0
+  })
   // Center: additive indices sum to 0; multiplicative indices average to 1.
   const meanIndex = rawIndices.reduce((s, v) => s + v, 0) / m
   const seasonalIndices = rawIndices.map((v) => (multiplicative ? v / meanIndex : v - meanIndex))
@@ -119,7 +121,7 @@ export function seasonalDecompose(
 /** Centered moving average of order `m` (2×m when even), `NaN` at the ends. */
 function centeredMovingAverage(series: readonly number[], m: number): number[] {
   const n = series.length
-  const out = new Array(n).fill(Number.NaN)
+  const out = new Array<number>(n).fill(Number.NaN)
   const even = m % 2 === 0
   const half = Math.floor(m / 2)
   for (let t = half; t < n - half; t++) {

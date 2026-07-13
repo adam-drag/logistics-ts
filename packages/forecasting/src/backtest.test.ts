@@ -5,7 +5,8 @@ import { ses } from './ses'
 describe('backtest rolling-origin', () => {
   it('scores a naive (last-value) forecaster with hand-checkable errors', () => {
     // naive one-step on 1..6, minTrain 2: origins predict 3,4,5,6 from 2,3,4,5
-    const naive = (t: readonly number[], h: number): number[] => new Array(h).fill(t.at(-1))
+    const naive = (t: readonly number[], h: number): number[] =>
+      new Array<number>(h).fill(t.at(-1) ?? Number.NaN)
     const { value } = backtest([1, 2, 3, 4, 5, 6], naive, { minTrain: 2 })
     expect(value.origins).toBe(4)
     expect(value.forecasts).toEqual([2, 3, 4, 5])
@@ -16,7 +17,8 @@ describe('backtest rolling-origin', () => {
   })
 
   it('evaluates the h-step-ahead forecast when horizon > 1', () => {
-    const naive = (t: readonly number[], h: number): number[] => new Array(h).fill(t.at(-1))
+    const naive = (t: readonly number[], h: number): number[] =>
+      new Array<number>(h).fill(t.at(-1) ?? Number.NaN)
     // horizon 2 on 1..6, minTrain 2: predict actual[o+1] from last train value
     const { value } = backtest([1, 2, 3, 4, 5, 6], naive, { minTrain: 2, horizon: 2 })
     expect(value.actuals).toEqual([4, 5, 6]) // 2-step-ahead targets
@@ -25,7 +27,9 @@ describe('backtest rolling-origin', () => {
 
   it('skips origins where the forecaster returns NaN', () => {
     const flaky = (t: readonly number[], h: number): number[] =>
-      t.length < 4 ? new Array(h).fill(Number.NaN) : new Array(h).fill(t.at(-1))
+      t.length < 4
+        ? new Array<number>(h).fill(Number.NaN)
+        : new Array<number>(h).fill(t.at(-1) ?? Number.NaN)
     const { value } = backtest([1, 2, 3, 4, 5, 6], flaky, { minTrain: 2 })
     expect(value.origins).toBe(2) // only trains of length 4 and 5 score
   })
@@ -33,7 +37,9 @@ describe('backtest rolling-origin', () => {
   it('skips origins where the forecaster returns an infinite value', () => {
     // An Infinity forecast must be skipped like NaN, not poison MAE/RMSE/MASE.
     const spiky = (t: readonly number[], h: number): number[] =>
-      t.length < 4 ? new Array(h).fill(Number.POSITIVE_INFINITY) : new Array(h).fill(t.at(-1))
+      t.length < 4
+        ? new Array<number>(h).fill(Number.POSITIVE_INFINITY)
+        : new Array<number>(h).fill(t.at(-1) ?? Number.NaN)
     const { value } = backtest([1, 2, 3, 4, 5, 6], spiky, { minTrain: 2 })
     expect(value.origins).toBe(2)
     expect(Number.isFinite(value.mae)).toBe(true)

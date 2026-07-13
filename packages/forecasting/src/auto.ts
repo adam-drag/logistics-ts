@@ -205,11 +205,11 @@ function guard(
   minLength: number,
 ): (train: readonly number[], h: number) => number[] {
   return (train, h) => {
-    if (train.length < minLength) return new Array(h).fill(Number.NaN)
+    if (train.length < minLength) return new Array<number>(h).fill(Number.NaN)
     try {
       return fn(train, h)
     } catch {
-      return new Array(h).fill(Number.NaN)
+      return new Array<number>(h).fill(Number.NaN)
     }
   }
 }

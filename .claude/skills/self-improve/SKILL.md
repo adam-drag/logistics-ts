@@ -86,6 +86,12 @@ clear error, not compute undefined behavior or silently return an empty/wrong re
   `backtest` skipped `NaN` forecasts but let `±Infinity` through to poison
   MAE/RMSE/MASE. "Not a number I can use" is `!Number.isFinite(x)`. (Caught:
   PR#12 `backtest.ts`.)
+- **`new Array(n).fill(x)` is `any[]` — it silently absorbs `undefined`.** An
+  unannotated `Array(n)` bypasses strictness, so `.fill(t.at(-1))` smuggled
+  `number | undefined` into a declared `number[]`. Write `new Array<number>(n)`
+  (or `Array.from`) so the fill is type-checked, and coalesce (`?? Number.NaN`)
+  where the source can be `undefined` — especially in `@example` code agents
+  copy-paste. (Caught: PR#12 round 2, `backtest.test.ts` + `@example`.)
 
 ### Type guards for untrusted JS callers
 

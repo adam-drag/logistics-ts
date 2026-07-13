@@ -36,4 +36,12 @@ describe('logistics-ts umbrella', () => {
     expect(analyzer.coverage().value[0]?.itemId).toBe('A')
     expect(analyzer.turnover().value[0]?.itemId).toBe('A')
   })
+
+  it('InventoryAnalyzer.safetyStock throws a clear error for an item with no lead-time records', () => {
+    const analyzer = new InventoryAnalyzer({
+      demand: [{ itemId: 'B', date: '2026-01-01', quantity: 10 }],
+      stock: [{ itemId: 'B', quantity: 15 }],
+    })
+    expect(() => analyzer.safetyStock('B', { serviceLevel: 0.95 })).toThrow(/no lead-time records/)
+  })
 })

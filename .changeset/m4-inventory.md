@@ -16,7 +16,11 @@ point, EOQ, coverage, turnover, and issue analysis.
   `eoqWithQuantityDiscounts` (all-units discount procedure).
 - **Coverage & turnover** — `coverage` (days of inventory, optional
   `autoForecast`-projected forecast walk) and `turnover` (unit-based turns and
-  DIO) over raw stock/demand records.
+  DIO) over raw stock/demand records. Both report genuine calendar days
+  regardless of the demand-bucketing `granularity` (day/week/month); lead time
+  (always recorded in days) is likewise converted into the matching period
+  unit wherever `issues`/`InventoryAnalyzer.safetyStock` combine it with
+  bucketed demand.
 - **Issue analyser** — `issues` composes safety stock, reorder point,
   coverage, and `classification.fsn` into per-item flags: `below-rop`,
   `below-safety-stock`, `stockout-risk-within-leadtime`, `overstocked`,

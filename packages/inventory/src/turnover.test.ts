@@ -43,6 +43,22 @@ describe('turnover', () => {
     expect(turnover([], []).value).toEqual([])
   })
 
+  it('reports daysInventoryOutstanding in genuine calendar days at non-day granularity', () => {
+    // One full ISO week of 10 units/day → meanDemandPerPeriod = 70/week.
+    // annualizedDemand = 70 · 52 = 3640; stock 140 → turnoverRatio 26;
+    // DIO = 365/26 ≈ 14.04 calendar days — not "365/26 weeks" or any other
+    // period-unit-dependent figure.
+    const stock = [stockOf('weekly', 140)]
+    const demand: DemandRecord[] = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(Date.UTC(2026, 0, 5 + i))
+      return { itemId: 'weekly', date: d.toISOString().slice(0, 10), quantity: 10 }
+    })
+    const result = turnover(stock, demand, { granularity: 'week' })
+    const row = rowFor(result.value, 'weekly')
+    expect(row?.turnoverRatio).toBeCloseTo(26, 6)
+    expect(row?.daysInventoryOutstanding).toBeCloseTo(365 / 26, 6)
+  })
+
   it('never returns a negative turnoverRatio for non-negative inputs', () => {
     fc.assert(
       fc.property(

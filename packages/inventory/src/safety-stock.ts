@@ -105,15 +105,29 @@ export function safetyStock(
   requireNonNegative('maxDemand', input.maxDemand)
   requireNonNegative('maxLeadTime', input.maxLeadTime)
 
+  const warnings: string[] = []
+
   let demandStdDev = input.demandStdDev
   let pattern = input.pattern
   if (input.series !== undefined) {
-    if (demandStdDev === undefined) demandStdDev = standardDeviation(input.series)
+    if (demandStdDev === undefined) {
+      // standardDeviation is NaN with fewer than two data points (or a
+      // NaN-contaminated series) — leave demandStdDev unset rather than
+      // letting a NaN "value" satisfy `!== undefined` checks below and
+      // silently produce a NaN safety stock.
+      const derived = standardDeviation(input.series)
+      if (Number.isFinite(derived)) {
+        demandStdDev = derived
+      } else {
+        warnings.push(
+          'series has fewer than two data points; could not derive demandStdDev from it',
+        )
+      }
+    }
     if (pattern === undefined) pattern = classifyDemandPattern(input.series).value.pattern
   }
 
   const requestedMethod = options.method ?? 'auto'
-  const warnings: string[] = []
 
   let resolvedMethod: Exclude<SafetyStockMethod, 'auto'>
   if (requestedMethod === 'auto') {

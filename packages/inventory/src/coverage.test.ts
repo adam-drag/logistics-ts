@@ -42,6 +42,19 @@ describe('coverage', () => {
     expect(coverage([], []).value).toEqual([])
   })
 
+  it('converts daysOfInventory to genuine calendar days at non-day granularity', () => {
+    // One full ISO week (Mon 2026-01-05 → Sun 2026-01-11) of 10 units/day
+    // → meanDemandPerPeriod = 70/week. Stock of 140 is 2 weeks of cover,
+    // i.e. 14 calendar days — not "2" (which a raw period count would give).
+    const stock = [stockOf('weekly', 140)]
+    const demand: DemandRecord[] = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(Date.UTC(2026, 0, 5 + i))
+      return { itemId: 'weekly', date: d.toISOString().slice(0, 10), quantity: 10 }
+    })
+    const result = coverage(stock, demand, { granularity: 'week' })
+    expect(rowFor(result.value, 'weekly')?.daysOfInventory).toBe(14)
+  })
+
   describe('forecastWalk', () => {
     it('walks the forecast forward to a plausible depletion day', () => {
       const stock = [stockOf('A', 40)]

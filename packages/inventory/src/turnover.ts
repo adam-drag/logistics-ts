@@ -17,6 +17,8 @@ import { aggregateItems } from './aggregate'
 import { round } from './round'
 
 const PERIODS_PER_YEAR: Record<Granularity, number> = { day: 365, week: 52, month: 12 }
+/** Days in a year, for `daysInventoryOutstanding` — a calendar-days figure, independent of `periodsPerYear`/`granularity`. */
+const DAYS_PER_YEAR = 365
 
 export interface TurnoverOptions {
   /** Demand bucketing granularity. Default `'day'`. */
@@ -29,7 +31,7 @@ export interface TurnoverRow {
   itemId: string
   /** Annualised demand ÷ stock on hand. `Infinity` when there is demand but no stock (not `NaN`). */
   turnoverRatio: number
-  /** `periodsPerYear / turnoverRatio`, in days. `Infinity` when `turnoverRatio` is 0 (no demand). */
+  /** `365 / turnoverRatio` — genuine calendar days, regardless of `granularity`. `Infinity` when `turnoverRatio` is 0 (no demand). */
   daysInventoryOutstanding: number
 }
 
@@ -63,7 +65,7 @@ export function turnover(
       turnoverRatio = annualizedDemand / agg.stockOnHand
     }
     const daysInventoryOutstanding =
-      turnoverRatio === 0 ? Number.POSITIVE_INFINITY : periodsPerYear / turnoverRatio
+      turnoverRatio === 0 ? Number.POSITIVE_INFINITY : DAYS_PER_YEAR / turnoverRatio
 
     return {
       itemId: agg.itemId,
@@ -79,7 +81,7 @@ export function turnover(
     inputs: { items: rows.length, granularity, periodsPerYear },
     reasoning: [
       'turnoverRatio = (meanDemandPerPeriod · periodsPerYear) / stockOnHand',
-      'daysInventoryOutstanding = periodsPerYear / turnoverRatio',
+      'daysInventoryOutstanding = 365 / turnoverRatio (calendar days, independent of granularity)',
     ],
     citations: ['Silver, Pyke & Thomas (2017), Inventory and Production Management'],
     ...(warnings.length > 0 ? { warnings } : {}),

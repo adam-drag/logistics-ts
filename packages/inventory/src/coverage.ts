@@ -1,7 +1,8 @@
 /**
- * Inventory coverage — how many periods of demand current stock can sustain,
- * either from the historical mean or by walking an `autoForecast` projection
- * forward until stock depletes.
+ * Inventory coverage — how many calendar days of demand current stock can
+ * sustain, either from the historical mean or by walking an `autoForecast`
+ * projection forward until stock depletes. Demand may be bucketed at any
+ * granularity (day/week/month); the result is always converted to days.
  *
  * @see Silver, E.A., Pyke, D.F. & Thomas, D.J. (2017). Inventory and
  *   Production Management in Supply Chains, 4th ed.
@@ -14,7 +15,7 @@ import {
   explain,
 } from '@logistics-ts/core'
 import { autoForecast } from '@logistics-ts/forecasting'
-import { aggregateItems } from './aggregate'
+import { DAYS_PER_PERIOD, aggregateItems } from './aggregate'
 import { round } from './round'
 
 export interface CoverageOptions {
@@ -35,9 +36,13 @@ export interface CoverageRow {
   itemId: string
   stockOnHand: number
   meanDemandPerPeriod: number
-  /** `stockOnHand / meanDemandPerPeriod`. `0` when there is no stock or no demand (not `NaN`). */
+  /**
+   * `(stockOnHand / meanDemandPerPeriod) × the granularity's period length in
+   * days` — genuine calendar days regardless of `granularity`. `0` when there
+   * is no stock or no demand (not `NaN`).
+   */
   daysOfInventory: number
-  /** Periods until cumulative forecast demand depletes stock. Present only when `forecastWalk: true` and depletion occurs within the horizon. */
+  /** Calendar days until cumulative forecast demand depletes stock. Present only when `forecastWalk: true` and depletion occurs within the horizon. */
   forecastWalkDays?: number
 }
 
@@ -56,13 +61,14 @@ export function coverage(
 ): Explained<CoverageRow[]> {
   const { granularity = 'day', forecastWalk = false, forecastHorizon = 90 } = options
   const aggregates = aggregateItems(stock, demand, [], { granularity })
+  const periodLengthDays = DAYS_PER_PERIOD[granularity]
   const warnings: string[] = []
 
   const rows: CoverageRow[] = aggregates.map((agg) => {
     const daysOfInventory =
       agg.stockOnHand === 0 || agg.meanDemandPerPeriod === 0
         ? 0
-        : agg.stockOnHand / agg.meanDemandPerPeriod
+        : (agg.stockOnHand / agg.meanDemandPerPeriod) * periodLengthDays
 
     const row: CoverageRow = {
       itemId: agg.itemId,
@@ -94,7 +100,7 @@ export function coverage(
           `item "${agg.itemId}" did not deplete within the ${forecastHorizon}-period forecast horizon`,
         )
       } else {
-        row.forecastWalkDays = depletedAt
+        row.forecastWalkDays = round(depletedAt * periodLengthDays)
       }
     }
 
@@ -107,7 +113,7 @@ export function coverage(
     reasoning: [
       forecastWalk
         ? 'daysOfInventory from the historical mean; forecastWalkDays from walking an autoForecast projection forward until stock depletes'
-        : 'daysOfInventory = stockOnHand / meanDemandPerPeriod',
+        : 'daysOfInventory = (stockOnHand / meanDemandPerPeriod) × the granularity period length in days',
     ],
     citations: ['Silver, Pyke & Thomas (2017), Inventory and Production Management'],
     ...(warnings.length > 0 ? { warnings } : {}),

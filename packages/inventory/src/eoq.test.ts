@@ -110,8 +110,8 @@ describe('eoqWithQuantityDiscounts', () => {
         orderCost: 49,
         holdingCostRate: 0.2,
         tiers: [
-          { minQuantity: 500, unitPrice: 4.65 },
           { minQuantity: 1, unitPrice: 5.0 },
+          { minQuantity: 0.5, unitPrice: 4.65 },
         ],
       }),
     ).toThrow(/sorted ascending/)
@@ -126,5 +126,19 @@ describe('eoqWithQuantityDiscounts', () => {
         tiers: [],
       }),
     ).toThrow(/tiers/)
+  })
+
+  it('throws when the first tier does not start at a quantity ≤ 1, per its documented constraint', () => {
+    expect(() =>
+      eoqWithQuantityDiscounts({
+        annualDemand: 5000,
+        orderCost: 49,
+        holdingCostRate: 0.2,
+        tiers: [
+          { minQuantity: 10, unitPrice: 5.0 },
+          { minQuantity: 500, unitPrice: 4.65 },
+        ],
+      }),
+    ).toThrow(/tiers\[0\]\.minQuantity/)
   })
 })

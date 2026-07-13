@@ -102,6 +102,11 @@ export class InventoryAnalyzer {
     const leadTimeValues = (this.input.leadTimes ?? [])
       .filter((r) => r.itemId === itemId)
       .map((r) => r.leadTimeDays)
+    if (leadTimeValues.length === 0) {
+      throw new Error(
+        `InventoryAnalyzer.safetyStock: item "${itemId}" has no lead-time records in the held dataset`,
+      )
+    }
     // Lead time is always recorded in days; convert into the same period unit
     // as meanDemand (the chosen granularity) before combining the two.
     const periodLengthDays = DAYS_PER_PERIOD[granularity]

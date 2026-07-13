@@ -80,6 +80,34 @@ describe('safetyStock', () => {
       ).toThrow(/auto requires/)
     })
 
+    it('does not derive a NaN demandStdDev from a single-point series — falls back to another available method instead of producing NaN', () => {
+      const result = safetyStock(
+        { meanDemand: 100, meanLeadTime: 7, maxDemand: 150, maxLeadTime: 10, series: [42] },
+        { serviceLevel: 0.95 },
+      )
+      // Single-point series → NaN std dev, discarded rather than treated as
+      // "available"; auto falls through to the next usable method
+      // (max-minus-average here) instead of silently computing a NaN result.
+      expect(Number.isNaN(result.value)).toBe(false)
+      expect(result.warnings?.some((w) => w.includes('fewer than two data points'))).toBe(true)
+      expect(result.method).toBe('auto-max-minus-average')
+    })
+
+    it('throws (not a NaN result) when auto has no other usable inputs beyond an insufficient series', () => {
+      expect(() =>
+        safetyStock({ meanDemand: 100, meanLeadTime: 7, series: [42] }, { serviceLevel: 0.95 }),
+      ).toThrow(/auto requires/)
+    })
+
+    it('throws instead of returning NaN when an explicit method needs demandStdDev derived from an insufficient series', () => {
+      expect(() =>
+        safetyStock(
+          { meanDemand: 100, meanLeadTime: 7, series: [42] },
+          { method: 'demand-variability', serviceLevel: 0.95 },
+        ),
+      ).toThrow(/demandStdDev/)
+    })
+
     it('warns but does not switch formula when the series is intermittent', () => {
       const intermittentSeries = [0, 0, 5, 0, 0, 0, 4, 0, 0, 0, 0, 6]
       const result = safetyStock(

@@ -138,6 +138,11 @@ export function eoqWithQuantityDiscounts(
   requirePositive('orderCost', orderCost)
   requirePositive('holdingCostRate', holdingCostRate)
   if (tiers.length === 0) throw new Error('eoqWithQuantityDiscounts: tiers must be non-empty')
+  if ((tiers[0] as QuantityDiscountTier).minQuantity > 1) {
+    throw new Error(
+      `eoqWithQuantityDiscounts: tiers[0].minQuantity must be ≤ 1 (got ${(tiers[0] as QuantityDiscountTier).minQuantity}) — otherwise quantities below it have no price tier`,
+    )
+  }
   for (let i = 0; i < tiers.length; i++) {
     const tier = tiers[i] as QuantityDiscountTier
     requirePositive(`tiers[${i}].unitPrice`, tier.unitPrice)

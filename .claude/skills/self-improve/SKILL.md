@@ -56,6 +56,15 @@ agree — a wrong explanation is worse than none in an explainable library.
   *required* column" even when enforcing an explicitly-mapped *optional* column;
   reword so a misspelled optional mapping isn't reported as a missing required one.
   (Caught: PR#2 `loader.ts`.)
+- **Compute every `@example` value from the implementation** (best: mirror an
+  existing test assertion). `smape`'s `@example` said `≈ 6.13` where the code (and
+  its own test) gives `≈ 10.03` — an executable-looking doc value that was never
+  executed. (Caught: PR#12 `metrics.ts`.)
+- **A warning must state the cause the code actually established, not the most
+  common one.** `autoForecast`'s fallback warned "series too short" but the same
+  branch fires when a constant series makes every backtest MASE non-finite; track
+  which condition occurred and word the warning per-cause. (Caught: PR#12
+  `auto.ts`, Copilot.)
 
 ### API boundary: validate inputs and fail fast (recurred 4×)
 
@@ -73,6 +82,10 @@ clear error, not compute undefined behavior or silently return an empty/wrong re
 - **Anchor validation regexes.** The ISO-date regex accepted trailing garbage after
   `T`/space (`"2026-01-01Txyz"`) despite the comment claiming it was rejected. Make
   the pattern actually reject what the doc says it does. (Caught: PR#2.)
+- **Guard numeric passthroughs with `Number.isFinite`, not `Number.isNaN`.**
+  `backtest` skipped `NaN` forecasts but let `±Infinity` through to poison
+  MAE/RMSE/MASE. "Not a number I can use" is `!Number.isFinite(x)`. (Caught:
+  PR#12 `backtest.ts`.)
 
 ### Type guards for untrusted JS callers
 
@@ -112,6 +125,12 @@ validate structurally, not trust a partial shape.
 - **Pin tool versions in CI** to match `packageManager` — `pnpm/action-setup` without
   a pinned version can install a pnpm newer than `pnpm@9.7.1` and break lockfile
   reproducibility. (Caught: PR#1 `ci.yml`.)
+- **`noUnusedLocals` does not catch doc-only imports** — tsc counts a TSDoc
+  `{@link X}` as a usage, so an import referenced only from doc comments sails
+  through typecheck. Biome `correctness/noUnusedImports` + `noUnusedVariables` are
+  now `error` in `biome.json` to close that gap; point doc links at symbols the
+  file genuinely imports for code (e.g. `ForecastResult`), or use plain backticks.
+  (Caught: PR#12 — seven files imported `Explained` only for `{@link}`.)
 
 ### Numeric correctness (the product)
 
@@ -119,6 +138,13 @@ validate structurally, not trust a partial shape.
   against a z-table point, a cited textbook example (name it in the test), or a
   statsforecast/stockpyl fixture — with a *deliberate, commented* tolerance. A loose
   tolerance hiding a real disagreement is a failed test dressed as a pass.
+- **Hand-computed tests are not reference-fixture golden tests.** M3 shipped with
+  hand-derived recursion checks and claimed "golden tests"; the plan's exit
+  criterion meant *fixtures from the named reference*. Generating them immediately
+  surfaced two real convention divergences (TSB's probability init; statsmodels'
+  stale seasonal index at h ≡ 0 mod m) that hand-computed tests could never catch —
+  a fixture run against the reference is part of the milestone, not a follow-up.
+  (Caught: PR#12 review; fixed by `fixtures/generate.py` + `golden.test.ts`.)
 - **State the std convention.** Sample (n−1) is the default; population (n) is
   opt-in. Mismatching it against a reference is a common golden-test discrepancy —
   check the reference's convention before loosening tolerance.

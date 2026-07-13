@@ -1,4 +1,3 @@
-import { classifyDemandPattern } from '@logistics-ts/classification'
 /**
  * Automatic forecasting-method selection. It classifies the series' demand
  * pattern (Syntetos–Boylan–Croston), draws the candidate methods suited to that
@@ -11,11 +10,13 @@ import { classifyDemandPattern } from '@logistics-ts/classification'
  *   (2006) for MASE; Hyndman & Athanasopoulos (2021), fpp3 §5.10 for
  *   time-series cross-validation.
  */
-import { type Explained, explain } from '@logistics-ts/core'
+import { classifyDemandPattern } from '@logistics-ts/classification'
+import { explain } from '@logistics-ts/core'
 import { type BacktestResult, backtest } from './backtest'
 import { croston } from './croston'
 import { holt } from './holt'
 import { holtWinters } from './holt-winters'
+import { round } from './round'
 import { sba } from './sba'
 import { ses } from './ses'
 import { tsb } from './tsb'
@@ -51,7 +52,7 @@ interface Candidate {
  *
  * @param series - Demand per period, oldest → newest, zero-filled. Non-empty.
  * @param options - `horizon` (default 1) and optional `seasonLength`.
- * @returns An {@link Explained} forecast; `method` is `auto-<winner>` and the
+ * @returns A {@link ForecastResult}; `method` is `auto-<winner>` and the
  *   reasoning records the quadrant, candidates, and their MASE scores.
  *
  * @example
@@ -90,7 +91,7 @@ export function autoForecast(
       result = undefined
     }
     const mase = result && Number.isFinite(result.mase) ? result.mase : Number.POSITIVE_INFINITY
-    return { candidate: c, mase }
+    return { candidate: c, mase, ran: result !== undefined }
   })
 
   const ranked = [...scored].sort((a, b) => a.mase - b.mase)
@@ -102,11 +103,17 @@ export function autoForecast(
 
   const forecast = winner.run(series, horizon)
 
+  // Distinguish the fallback cause: no candidate could run at all (series too
+  // short for any rolling origin) vs. runs that all scored a non-finite MASE
+  // (e.g. a constant series makes the naive scale zero).
+  const anyRan = scored.some((s) => s.ran)
+  const fallbackCause = anyRan
+    ? 'no candidate produced a finite backtest MASE (a constant series makes the naive MASE scale zero)'
+    : 'series has too little history for any rolling-origin backtest, so no candidate produced a finite backtest MASE'
+
   const warnings = [...(forecast.warnings ?? [])]
   if (!backtested)
-    warnings.push(
-      `series too short to backtest reliably; fell back to the ${pattern} default (${defaultName})`,
-    )
+    warnings.push(`${fallbackCause}; fell back to the ${pattern} default (${defaultName})`)
 
   const scoreLine = scored
     .map((s) => `${s.candidate.name} MASE ${Number.isFinite(s.mase) ? round(s.mase) : 'n/a'}`)
@@ -126,7 +133,7 @@ export function autoForecast(
       `SBC pattern: ${pattern} → ${intermittent ? 'intermittent' : 'smooth/erratic'} candidate family`,
       backtested
         ? `rolling-origin MASE — ${scoreLine}`
-        : `not enough history to backtest (${scoreLine || 'no candidates scored'})`,
+        : `no candidate scored a finite MASE (${scoreLine || 'no candidates scored'})`,
       `selected ${winner.name}${backtested ? ' (lowest MASE)' : ` (${pattern} default)`}`,
       ...forecast.reasoning.map((r) => `[${winner.name}] ${r}`),
     ],
@@ -205,8 +212,4 @@ function guard(
       return new Array(h).fill(Number.NaN)
     }
   }
-}
-
-function round(x: number): number {
-  return Number.isNaN(x) ? Number.NaN : Math.round(x * 1e6) / 1e6
 }

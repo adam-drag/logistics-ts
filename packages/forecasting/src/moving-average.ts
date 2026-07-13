@@ -7,7 +7,8 @@
  * @see Hyndman, R.J. & Athanasopoulos, G. (2021). Forecasting: Principles and
  *   Practice, 3rd ed. (fpp3), §3.3.
  */
-import { type Explained, explain } from '@logistics-ts/core'
+import { explain } from '@logistics-ts/core'
+import { round } from './round'
 import type { Forecast, ForecastResult } from './types'
 
 export interface MovingAverageOptions {
@@ -26,7 +27,7 @@ export interface MovingAverageOptions {
  *
  * @param series - Demand per period, oldest → newest, zero-filled.
  * @param options - `window` (required) and `horizon` (default 1).
- * @returns An {@link Explained} {@link Forecast}; `params.window` records the window.
+ * @returns A {@link ForecastResult} ({@link Forecast} plus explanation); `params.window` records the window.
  *
  * @example
  * ```ts
@@ -66,8 +67,4 @@ export function movingAverage(
     ],
     citations: ['Hyndman & Athanasopoulos (2021), fpp3 §3.3'],
   })
-}
-
-function round(x: number): number {
-  return Math.round(x * 1e6) / 1e6
 }

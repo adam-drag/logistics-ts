@@ -8,7 +8,8 @@
  * @see Hyndman, R.J. & Athanasopoulos, G. (2021). Forecasting: Principles and
  *   Practice, 3rd ed. (fpp3), §8.4.
  */
-import { type Explained, explain, nelderMead } from '@logistics-ts/core'
+import { explain, nelderMead } from '@logistics-ts/core'
+import { round } from './round'
 import type { Forecast, ForecastResult } from './types'
 
 export interface HoltWintersOptions {
@@ -97,7 +98,7 @@ function run(series: readonly number[], m: number, multiplicative: boolean, p: H
  * @param series - Demand per period, oldest → newest. **Length ≥ 2·seasonLength.**
  *   Multiplicative mode requires all values strictly positive.
  * @param options - `seasonLength` (required), `mode`, `alpha`/`beta`/`gamma`, `horizon`.
- * @returns An {@link Explained} {@link Forecast}; `params` carries α, β, γ.
+ * @returns A {@link ForecastResult} ({@link Forecast} plus explanation); `params` carries α, β, γ.
  *
  * @example
  * ```ts
@@ -202,8 +203,4 @@ function describeFit(options: HoltWintersOptions): string {
 
 function checkUnit(name: string, v: number | undefined): void {
   if (v !== undefined && (v <= 0 || v >= 1)) throw new Error(`${name} must be in (0, 1) (got ${v})`)
-}
-
-function round(x: number): number {
-  return Math.round(x * 1e6) / 1e6
 }

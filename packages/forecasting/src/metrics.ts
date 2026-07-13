@@ -10,6 +10,7 @@
  *   forecast accuracy. International Journal of Forecasting, 22(4), 679–688.
  */
 import { type Explained, explain } from '@logistics-ts/core'
+import { round } from './round'
 
 /** Validates that two series line up and are non-empty. */
 function requirePaired(actual: readonly number[], forecast: readonly number[]): void {
@@ -121,7 +122,7 @@ export function mape(actual: readonly number[], forecast: readonly number[]): Ex
  *
  * @example
  * ```ts
- * smape([100, 200], [110, 180]).value // ≈ 6.13
+ * smape([100, 200], [110, 180]).value // ≈ 10.03
  * ```
  */
 export function smape(actual: readonly number[], forecast: readonly number[]): Explained<number> {
@@ -240,8 +241,4 @@ export function bias(actual: readonly number[], forecast: readonly number[]): Ex
     citations: ['Silver, Pyke & Thomas (2017)'],
     ...(warnings.length > 0 ? { warnings } : {}),
   })
-}
-
-function round(x: number): number {
-  return Number.isNaN(x) ? Number.NaN : Math.round(x * 1e6) / 1e6
 }

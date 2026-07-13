@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { tsb } from './tsb'
 
 describe('tsb (hand-computed, α_z=α_p=0.5)', () => {
-  // t0=1(4): z=4,p=1/2. t2 zero: p=.25. t3 zero: p=.125. t4(2): z=3,p=.5625 → rate 1.6875
+  // statsforecast init: p₀=d₀=0, z=4 at first demand (t=1).
+  // t1(4): p=.5·1+.5·0=.5. t2 zero: p=.25. t3 zero: p=.125. t4(2): z=.5·2+.5·4=3, p=.5625 → rate 1.6875
   const { value } = tsb([0, 4, 0, 0, 2], { alphaDemand: 0.5, alphaProbability: 0.5 })
 
   it('forecasts probability × size', () => {

@@ -10,6 +10,7 @@
  *   Practice, 3rd ed. (fpp3), §3.4.
  */
 import { type Explained, explain } from '@logistics-ts/core'
+import { round } from './round'
 
 export interface SeasonalDecomposeOptions {
   /** Length of one seasonal cycle `m ≥ 2`. Required. */
@@ -134,8 +135,4 @@ function centeredMovingAverage(series: readonly number[], m: number): number[] {
     }
   }
   return out
-}
-
-function round(x: number): number {
-  return Number.isNaN(x) ? Number.NaN : Math.round(x * 1e6) / 1e6
 }

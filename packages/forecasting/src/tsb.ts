@@ -9,7 +9,8 @@
  *   Linking forecasting to inventory obsolescence. European Journal of
  *   Operational Research, 214(3), 606–615.
  */
-import { type Explained, explain } from '@logistics-ts/core'
+import { explain } from '@logistics-ts/core'
+import { round } from './round'
 import type { Forecast, ForecastResult } from './types'
 
 export interface TsbOptions {
@@ -27,13 +28,16 @@ export interface TsbOptions {
  * Every period updates the probability `p̂ ← α_p·dₜ + (1−α_p)·p̂` (with `dₜ = 1`
  * if demand occurred, else `0`); on demand periods the size updates
  * `ẑ ← α_z·yₜ + (1−α_z)·ẑ`. Forecast is the flat rate `ŷ = p̂·ẑ` (units: demand
- * units per period). States initialise at the first demand: `ẑ = y_{t₀}`,
- * `p̂ = 1/(t₀+1)`. A series with no demand forecasts `0` with a warning.
+ * units per period). Initialisation follows `statsforecast`'s TSB (pinned by the
+ * golden fixtures): `p̂ = d₀` (the first period's 0/1 demand indicator, then
+ * updated every period from `t = 1`), and `ẑ = y_{t₀}` (the first non-zero
+ * demand, smoothed over later demand periods). A series with no demand
+ * forecasts `0` with a warning.
  *
  * @param series - Demand per period, oldest → newest, zero-filled. Non-empty.
  * @param options - Optional `alphaDemand`, `alphaProbability` (both default 0.1),
  *   and `horizon` (default 1).
- * @returns An {@link Explained} {@link Forecast}; `params` carries p̂ and ẑ.
+ * @returns A {@link ForecastResult} ({@link Forecast} plus explanation); `params` carries p̂ and ẑ.
  *
  * @example
  * ```ts
@@ -61,14 +65,17 @@ export function tsb(series: readonly number[], options: TsbOptions = {}): Foreca
   if (t0 === -1) {
     warnings.push('series has no demand; forecast is 0')
   } else {
-    // Initialise from the first demand; probability ≈ inverse of periods to it.
+    // statsforecast convention: p̂ starts at the first period's 0/1 indicator
+    // and smooths every period; ẑ starts at the first non-zero demand and
+    // smooths on later demand periods only.
     size = series[t0] as number
-    prob = 1 / (t0 + 1)
-    for (let t = t0 + 1; t < series.length; t++) {
-      fitted[t] = prob * size // one-step forecast, known before observing t
+    prob = t0 === 0 ? 1 : 0
+    for (let t = 1; t < series.length; t++) {
+      // One-step forecast known before observing t — defined once ẑ exists.
+      if (t > t0) fitted[t] = prob * size
       const y = series[t] as number
       const d = y > 0 ? 1 : 0
-      if (d === 1) size = alphaDemand * y + (1 - alphaDemand) * size
+      if (d === 1 && t > t0) size = alphaDemand * y + (1 - alphaDemand) * size
       prob = alphaProbability * d + (1 - alphaProbability) * prob
     }
     value = prob * size
@@ -97,8 +104,4 @@ export function tsb(series: readonly number[], options: TsbOptions = {}): Foreca
     citations: ['Teunter, Syntetos & Babai (2011), EJOR 214(3)'],
     ...(warnings.length > 0 ? { warnings } : {}),
   })
-}
-
-function round(x: number): number {
-  return Number.isNaN(x) ? Number.NaN : Math.round(x * 1e6) / 1e6
 }

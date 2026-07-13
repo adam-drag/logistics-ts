@@ -30,6 +30,15 @@ describe('backtest rolling-origin', () => {
     expect(value.origins).toBe(2) // only trains of length 4 and 5 score
   })
 
+  it('skips origins where the forecaster returns an infinite value', () => {
+    // An Infinity forecast must be skipped like NaN, not poison MAE/RMSE/MASE.
+    const spiky = (t: readonly number[], h: number): number[] =>
+      t.length < 4 ? new Array(h).fill(Number.POSITIVE_INFINITY) : new Array(h).fill(t.at(-1))
+    const { value } = backtest([1, 2, 3, 4, 5, 6], spiky, { minTrain: 2 })
+    expect(value.origins).toBe(2)
+    expect(Number.isFinite(value.mae)).toBe(true)
+  })
+
   it('works with a real forecaster (SES) end to end', () => {
     const series = [10, 11, 9, 12, 10, 13, 11, 14]
     const r = backtest(series, (t, h) => ses(t, { horizon: h }).value.forecast, { minTrain: 3 })

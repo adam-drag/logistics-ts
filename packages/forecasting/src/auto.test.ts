@@ -50,7 +50,18 @@ describe('autoForecast selection and explanation', () => {
 describe('autoForecast edge cases', () => {
   it('falls back to the pattern default and warns on a too-short series', () => {
     const r = autoForecast([3, 4]) // too short for any rolling origin
-    expect(r.warnings?.some((w) => /too short|default/.test(w))).toBe(true)
+    expect(r.warnings?.some((w) => /finite backtest MASE/.test(w))).toBe(true)
+    expect(r.inputs.selected).toBe('ses')
+  })
+
+  it('falls back with an accurate warning on a constant series (MASE scale is zero)', () => {
+    // Long enough to backtest, but constant → naive scale 0 → every MASE is NaN.
+    const r = autoForecast([7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7])
+    expect(r.inputs.selected).toBe('ses')
+    // The explanation must not blame series length — the series is not short.
+    expect(r.warnings?.some((w) => /too short/.test(w))).toBe(false)
+    expect(r.warnings?.some((w) => /finite backtest MASE/.test(w))).toBe(true)
+    expect(r.reasoning.some((line) => /no candidate scored a finite MASE/.test(line))).toBe(true)
   })
 
   it('validates inputs', () => {

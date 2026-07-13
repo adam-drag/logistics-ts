@@ -20,6 +20,16 @@ Pin the output to a value produced by something authoritative, with tolerance:
   `statsforecast` (Croston/SBA/TSB, ETS). Put a `fixtures/generate.py` alongside so
   the fixture is reproducible; compare with a tolerance (`toBeCloseTo` or an explicit
   `Math.abs(a - b) < tol`), never exact float equality.
+  Learned generating the M3 fixtures (see `fixtures/generate.py` docstring):
+  `statsforecast`'s Holt/HW are ETS models with MLE-optimised initial states —
+  not comparable at fixed parameters; use `statsmodels` with
+  `initialization_method="known"` (feed the TS code's own initial states) instead.
+  Pin the **one-step fitted path**, not just a few forecast points — it exercises
+  every state update. Expect and *adjudicate* convention divergences rather than
+  loosening tolerance: TSB's probability init differs between conventions (we
+  match statsforecast), and statsmodels HW uses a one-update-stale seasonal at
+  h ≡ 0 (mod m) where fpp3/R use the latest (we follow fpp3; keep fixture
+  horizon < m).
 - **Inventory formulas** → `stockpyl` fixtures (EOQ, safety stock) or the worked
   numbers from the cited paper.
 

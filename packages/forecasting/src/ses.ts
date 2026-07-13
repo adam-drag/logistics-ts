@@ -7,7 +7,8 @@
  * @see Hyndman, R.J. & Athanasopoulos, G. (2021). Forecasting: Principles and
  *   Practice, 3rd ed. (fpp3), §8.1.
  */
-import { type Explained, explain, nelderMead } from '@logistics-ts/core'
+import { explain, nelderMead } from '@logistics-ts/core'
+import { round } from './round'
 import type { Forecast, ForecastResult } from './types'
 
 export interface SesOptions {
@@ -45,7 +46,7 @@ function smooth(series: readonly number[], alpha: number): { levels: number[]; s
  *
  * @param series - Demand per period, oldest → newest, zero-filled. Non-empty.
  * @param options - Optional fixed `alpha` and `horizon` (default 1).
- * @returns An {@link Explained} {@link Forecast}; `params.alpha` is the α used.
+ * @returns A {@link ForecastResult} ({@link Forecast} plus explanation); `params.alpha` is the α used.
  *
  * @example
  * ```ts
@@ -92,8 +93,4 @@ function fitAlpha(series: readonly number[]): number {
     maxIterations: 500,
   })
   return toAlpha(result.x[0] as number)
-}
-
-function round(x: number): number {
-  return Math.round(x * 1e6) / 1e6
 }

@@ -8,7 +8,8 @@
  * @see Hyndman, R.J. & Athanasopoulos, G. (2021). Forecasting: Principles and
  *   Practice, 3rd ed. (fpp3), §8.2 (Holt) and §8.3 (damped trend).
  */
-import { type Explained, explain, nelderMead } from '@logistics-ts/core'
+import { explain, nelderMead } from '@logistics-ts/core'
+import { round } from './round'
 import type { Forecast, ForecastResult } from './types'
 
 export interface HoltOptions {
@@ -70,7 +71,7 @@ function run(series: readonly number[], p: HoltParams): HoltState {
  *
  * @param series - Demand per period, oldest → newest. **At least 2 points.**
  * @param options - Optional `alpha`/`beta`/`phi`, `damped`, and `horizon`.
- * @returns An {@link Explained} {@link Forecast}; `params` carries α, β, φ.
+ * @returns A {@link ForecastResult} ({@link Forecast} plus explanation); `params` carries α, β, φ.
  *
  * @example
  * ```ts
@@ -133,13 +134,15 @@ function fitParams(series: readonly number[], options: HoltOptions, damped: bool
   if (options.beta === undefined) free.push('beta')
   if (damped && options.phi === undefined) free.push('phi')
 
+  // A parameter is either supplied or free — `next()` consumes θ in the same
+  // order the free list was built (α, β, φ).
   const build = (theta: readonly number[]): HoltParams => {
     let i = 0
     const next = (): number => logistic(theta[i++] as number)
     return {
-      alpha: options.alpha ?? (free.includes('alpha') ? next() : 0.5),
-      beta: options.beta ?? (free.includes('beta') ? next() : 0.5),
-      phi: !damped ? 1 : (options.phi ?? (free.includes('phi') ? next() : 0.98)),
+      alpha: options.alpha ?? next(),
+      beta: options.beta ?? next(),
+      phi: !damped ? 1 : (options.phi ?? next()),
     }
   }
   if (free.length === 0) return build([])
@@ -163,8 +166,4 @@ function describeFit(options: HoltOptions, damped: boolean): string {
 
 function checkUnit(name: string, v: number | undefined): void {
   if (v !== undefined && (v <= 0 || v >= 1)) throw new Error(`${name} must be in (0, 1) (got ${v})`)
-}
-
-function round(x: number): number {
-  return Math.round(x * 1e6) / 1e6
 }

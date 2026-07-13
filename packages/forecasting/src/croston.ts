@@ -9,8 +9,9 @@
  * @see Croston, J.D. (1972). Forecasting and stock control for intermittent
  *   demands. Operational Research Quarterly, 23(3), 289–303.
  */
-import { type Explained, explain } from '@logistics-ts/core'
+import { explain } from '@logistics-ts/core'
 import { crostonRecursion } from './croston-base'
+import { round } from './round'
 import type { Forecast, ForecastResult } from './types'
 
 export interface CrostonOptions {
@@ -34,7 +35,7 @@ export interface CrostonOptions {
  *
  * @param series - Demand per period, oldest → newest, zero-filled. Non-empty.
  * @param options - Optional `alpha` (default 0.1) and `horizon` (default 1).
- * @returns An {@link Explained} {@link Forecast}; `params` carries α, ẑ, q̂.
+ * @returns A {@link ForecastResult} ({@link Forecast} plus explanation); `params` carries α, ẑ, q̂.
  *
  * @example
  * ```ts
@@ -101,8 +102,4 @@ export function crostonForecast(
     citations: corrected ? ['Syntetos & Boylan (2005), IJF 21(2)'] : ['Croston (1972), ORQ 23(3)'],
     ...(warnings.length > 0 ? { warnings } : {}),
   })
-}
-
-function round(x: number): number {
-  return Number.isNaN(x) ? Number.NaN : Math.round(x * 1e6) / 1e6
 }

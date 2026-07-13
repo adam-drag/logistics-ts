@@ -10,6 +10,7 @@
  */
 import { type Explained, explain } from '@logistics-ts/core'
 import { mae as maeMetric, mase as maseMetric, rmse as rmseMetric } from './metrics'
+import { round } from './round'
 
 /** Produces `horizon` point forecasts from a training prefix. */
 export type Forecaster = (train: readonly number[], horizon: number) => number[]
@@ -85,7 +86,7 @@ export function backtest(
     const train = series.slice(0, o)
     const fc = forecaster(train, horizon)
     const point = fc[horizon - 1]
-    if (point === undefined || Number.isNaN(point)) continue // skip origins the method can't score
+    if (point === undefined || !Number.isFinite(point)) continue // skip origins the method can't score
     forecasts.push(point)
     actuals.push(series[o + horizon - 1] as number)
   }
@@ -117,8 +118,4 @@ export function backtest(
       citations: ['Hyndman & Athanasopoulos (2021), fpp3 §5.10'],
     },
   )
-}
-
-function round(x: number): number {
-  return Number.isNaN(x) ? Number.NaN : Math.round(x * 1e6) / 1e6
 }

@@ -15,3 +15,9 @@ export * as core from '@logistics-ts/core'
 export * as classification from '@logistics-ts/classification'
 export * as forecasting from '@logistics-ts/forecasting'
 export * as inventory from '@logistics-ts/inventory'
+
+export {
+  InventoryAnalyzer,
+  type InventoryAnalyzerInput,
+  type AbcXyzOptions,
+} from './inventory-analyzer'

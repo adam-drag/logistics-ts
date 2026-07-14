@@ -104,6 +104,15 @@ not just where a test happened to expose it.
 A primitive that a power user calls directly must reject nonsensical input with a
 clear error, not compute undefined behavior or silently return an empty/wrong result.
 
+- **A composite function can't delegate its own input validation to a sub-call
+  that isn't always reached.** `issues()` never validated `serviceLevel` itself,
+  relying on `safetyStock()` (which does validate it) — but `safetyStock()` is
+  only invoked per-item when that item has lead-time records. A dataset with no
+  lead-time records at all let an invalid `serviceLevel` (e.g. `0` or `1`) through
+  silently. If a function's own option is documented as constrained, validate it
+  at the top of *that* function, even if every current code path happens to
+  re-validate it downstream — "happens to" is not a guarantee. (Caught: PR#13
+  `issues.ts`, Copilot.)
 - **Guard degenerate sizes.** `nelderMead` didn't reject an empty initial vector
   (`n === 0`), then read `simplex[n-1]` and divided by `n`. Reject early. (Caught: PR#2.)
 - **Enforce the contract's domain.** `fromEpochDay` documented a UTC-midnight `Date`
@@ -223,6 +232,19 @@ validate structurally, not trust a partial shape.
   feature, not a missing comment.
 - **Never invent a formula, cutoff, or citation.** They come from `research.md` /
   `plans/v0.1.md`. If one isn't specified and you can't cite it, stop and say so.
+- **A citation string repeated in multiple places (module header, per-branch
+  `citations`, its test assertion) must be typed once and copied, not retyped.**
+  `safety-stock.ts`'s file-header `@see` cited "King, P.L. (2011)" but the
+  `king`-branch `citations` array said "King, R.G. (2011)" — same paper, wrong
+  initials, silently divergent since nothing forces them to match. When a
+  citation appears more than once in a file, copy-paste it rather than
+  retyping from memory each time. (Caught: PR#13 `safety-stock.ts`, Copilot.)
+- **A bare `export interface` with only field-level comments still needs its own
+  TSDoc line.** `InventoryAnalyzerInput`/`AbcXyzOptions` had per-field comments
+  but no interface-level description — easy to skip on an options/input type
+  since there's no formula or citation to write, but the "every export carries
+  TSDoc" rule applies to a one-line description too. (Caught: PR#13
+  `inventory-analyzer.ts`, Copilot ×2.)
 - **Don't hand-format to fight biome** — run `pnpm lint:fix`.
 
 ---

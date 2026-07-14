@@ -34,12 +34,14 @@ import {
   turnover as turnoverFn,
 } from '@logistics-ts/inventory'
 
+/** The dataset an {@link InventoryAnalyzer} holds and passes to every method. */
 export interface InventoryAnalyzerInput {
   demand: readonly DemandRecord[]
   stock: readonly StockRecord[]
   leadTimes?: readonly LeadTimeRecord[]
 }
 
+/** Options for {@link InventoryAnalyzer.abcXyz}. */
 export interface AbcXyzOptions {
   /** Demand bucketing granularity for the XYZ variability axis. Default `'day'`. */
   granularity?: Granularity

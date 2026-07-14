@@ -197,7 +197,7 @@ export function safetyStock(
       inputs.demandStdDev = demandStdDev
       inputs.leadTimeStdDev = leadTimeStdDev
       reasoning = 'SS = Z · √(L̄·σD² + D̄²·σLT²) — buffers demand and lead-time variability together'
-      citation = 'King, R.G. (2011), APICS Magazine'
+      citation = 'King, P.L. (2011), APICS Magazine'
       break
     }
     case 'max-minus-average': {

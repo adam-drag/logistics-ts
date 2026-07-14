@@ -94,6 +94,13 @@ export function issues(
     overstockedCoverageDaysThreshold = 90,
     granularity = 'day',
   } = options
+  // Validated up front: safetyStock() (which normally validates this) is only
+  // called per-item when that item has lead-time records, so a dataset with
+  // no lead-time records at all would otherwise let an invalid serviceLevel
+  // through silently.
+  if (!(serviceLevel > 0 && serviceLevel < 1)) {
+    throw new Error(`issues: serviceLevel must be in (0, 1) (got ${serviceLevel})`)
+  }
 
   const aggregates = aggregateItems(stock, demand, leadTimes, { granularity })
   const coverageByItem = new Map(

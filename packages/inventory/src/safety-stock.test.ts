@@ -13,7 +13,7 @@ describe('safetyStock', () => {
     const result = safetyStock(scenario, { method: 'king', serviceLevel: 0.95 })
     expect(result.value).toBeCloseTo(186.09394458826773, 6)
     expect(result.method).toBe('king')
-    expect(result.citations).toContain('King, R.G. (2011), APICS Magazine')
+    expect(result.citations).toContain('King, P.L. (2011), APICS Magazine')
   })
 
   it('computes the demand-variability-only formula on a hand-verified scenario', () => {

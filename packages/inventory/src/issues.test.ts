@@ -64,6 +64,13 @@ describe('issues', () => {
     expect(result.warnings?.some((w) => w.includes('nolead'))).toBe(true)
   })
 
+  it('throws for an invalid serviceLevel even when no item has lead-time records to route it through safetyStock()', () => {
+    const stock: StockRecord[] = [stockOf('nolead', 5)]
+    const demand = demandOf('nolead', [10, 10, 10])
+    expect(() => issues(stock, demand, [], { serviceLevel: 0 })).toThrow(/serviceLevel/)
+    expect(() => issues(stock, demand, [], { serviceLevel: 1 })).toThrow(/serviceLevel/)
+  })
+
   it('returns an empty result for empty input without throwing', () => {
     expect(issues([], [], [], { serviceLevel: 0.95 }).value).toEqual([])
   })

@@ -65,12 +65,54 @@ agree — a wrong explanation is worse than none in an explainable library.
   branch fires when a constant series makes every backtest MASE non-finite; track
   which condition occurred and word the warning per-cause. (Caught: PR#12
   `auto.ts`, Copilot.)
+- **An enforced-sounding TSDoc constraint must actually be enforced.**
+  `QuantityDiscountInput`'s doc said tiers "must start at a quantity ≤ 1" but
+  `eoqWithQuantityDiscounts` never checked it, so a first tier with a gap below it
+  silently priced quantities that had no valid tier. If a doc states a constraint
+  in "must" language, either validate it or reword the doc to say what's actually
+  allowed. (Caught: PR#13 `eoq.ts`, Copilot.)
+
+### A parameter's unit must be re-checked in every sibling function that shares it
+
+When one function is found to mishandle a parameter that also appears in several
+sibling functions (same file, same layer, or the same shape of composition), fix
+the whole family in one pass — don't stop at the first instance found. Finding one
+occurrence is evidence the same mistake was made everywhere the parameter appears,
+not just where a test happened to expose it.
+
+- **`granularity` case study.** `issues()` combined `LeadTimeRecord.leadTimeDays`
+  (always literal days) with `meanDemandPerPeriod` (bucketed at whatever
+  `granularity` the caller chose) without converting units — a 7-day lead time was
+  silently treated as 7 *weeks* at `granularity: 'week'`. That got fixed in
+  isolation first. The *same* granularity parameter was accepted by `coverage()`
+  and `turnover()` too, and their own output fields (`daysOfInventory`,
+  `forecastWalkDays`, `daysInventoryOutstanding`) were named as if always in days
+  but were actually in whatever period `granularity` bucketed at — a second,
+  independent instance of the identical mistake that survived the first fix
+  because it doesn't involve lead time at all. Both needed a genuine
+  periods→days conversion (`DAYS_PER_PERIOD` in `aggregate.ts`, or `365 /
+  turnoverRatio` for the already-annualised DIO). (Caught: PR#13, Copilot — 3
+  separate comments on `coverage.ts`, `turnover.ts`, `issues.ts`, all one root
+  cause.)
+- **When you touch a function that takes a "granularity"/"unit"/"scale" option,
+  grep the package for every other function taking the same option** and check
+  whether each one's *own* output units are still correct at every option value —
+  not just whether it composes correctly with the one function you were fixing.
 
 ### API boundary: validate inputs and fail fast (recurred 4×)
 
 A primitive that a power user calls directly must reject nonsensical input with a
 clear error, not compute undefined behavior or silently return an empty/wrong result.
 
+- **A composite function can't delegate its own input validation to a sub-call
+  that isn't always reached.** `issues()` never validated `serviceLevel` itself,
+  relying on `safetyStock()` (which does validate it) — but `safetyStock()` is
+  only invoked per-item when that item has lead-time records. A dataset with no
+  lead-time records at all let an invalid `serviceLevel` (e.g. `0` or `1`) through
+  silently. If a function's own option is documented as constrained, validate it
+  at the top of *that* function, even if every current code path happens to
+  re-validate it downstream — "happens to" is not a guarantee. (Caught: PR#13
+  `issues.ts`, Copilot.)
 - **Guard degenerate sizes.** `nelderMead` didn't reject an empty initial vector
   (`n === 0`), then read `simplex[n-1]` and divided by `n`. Reject early. (Caught: PR#2.)
 - **Enforce the contract's domain.** `fromEpochDay` documented a UTC-midnight `Date`
@@ -92,6 +134,23 @@ clear error, not compute undefined behavior or silently return an empty/wrong re
   (or `Array.from`) so the fill is type-checked, and coalesce (`?? Number.NaN`)
   where the source can be `undefined` — especially in `@example` code agents
   copy-paste. (Caught: PR#12 round 2, `backtest.test.ts` + `@example`.)
+- **A value derived from optional data can be `NaN` while still `!== undefined` —
+  don't let it pass an availability check.** `safetyStock`'s `auto` routing derived
+  `demandStdDev` from an optional `series` via `standardDeviation()`, which is `NaN`
+  for fewer than two points. `NaN !== undefined` is `true`, so the derived NaN
+  silently satisfied "is this data available?" checks and produced a `NaN` safety
+  stock instead of falling back or throwing. When deriving an optional field from
+  another optional input, check `Number.isFinite(derived)` before treating it as
+  present — the `!== undefined` idiom only proves a value was *assigned*, not that
+  it's usable. (Caught: PR#13 `safety-stock.ts`, Copilot.)
+- **A convenience-wrapper class must translate a missing-data condition into a
+  clear error before delegating, not just let the underlying generic validation
+  fire.** `InventoryAnalyzer.safetyStock()` fed `mean([])` (`NaN`, for an item with
+  no lead-time records) straight into `safetyStock()`, which rejected it with a
+  generic "meanLeadTime must be finite" — technically correct but useless for
+  diagnosing which item/condition caused it. The wrapper exists for ergonomics;
+  check for the missing-data case itself and throw naming the item and the gap.
+  (Caught: PR#13 `inventory-analyzer.ts`, Copilot.)
 
 ### Type guards for untrusted JS callers
 
@@ -173,6 +232,19 @@ validate structurally, not trust a partial shape.
   feature, not a missing comment.
 - **Never invent a formula, cutoff, or citation.** They come from `research.md` /
   `plans/v0.1.md`. If one isn't specified and you can't cite it, stop and say so.
+- **A citation string repeated in multiple places (module header, per-branch
+  `citations`, its test assertion) must be typed once and copied, not retyped.**
+  `safety-stock.ts`'s file-header `@see` cited "King, P.L. (2011)" but the
+  `king`-branch `citations` array said "King, R.G. (2011)" — same paper, wrong
+  initials, silently divergent since nothing forces them to match. When a
+  citation appears more than once in a file, copy-paste it rather than
+  retyping from memory each time. (Caught: PR#13 `safety-stock.ts`, Copilot.)
+- **A bare `export interface` with only field-level comments still needs its own
+  TSDoc line.** `InventoryAnalyzerInput`/`AbcXyzOptions` had per-field comments
+  but no interface-level description — easy to skip on an options/input type
+  since there's no formula or citation to write, but the "every export carries
+  TSDoc" rule applies to a one-line description too. (Caught: PR#13
+  `inventory-analyzer.ts`, Copilot ×2.)
 - **Don't hand-format to fight biome** — run `pnpm lint:fix`.
 
 ---

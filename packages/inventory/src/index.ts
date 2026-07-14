@@ -1,15 +1,36 @@
 /**
- * @logistics-ts/inventory — safety stock, reorder point, EOQ, coverage, issues.
+ * @logistics-ts/inventory — safety stock, reorder point, EOQ, coverage,
+ * turnover, and issue analysis for logistics-ts.
  *
- * M0 scaffold: the actual formulas land in M4 (see plans/v0.1.md). This stub
- * imports from @logistics-ts/core to exercise the layered build. Dependencies
- * on classification and forecasting (for auto safety stock) are added in M4,
- * when the code first imports them.
+ * Every domain result is `Explained`: safety stock and EOQ are scalar
+ * formula functions over pre-summarized numbers; coverage, turnover, and
+ * issues are bulk analysis functions over raw stock/demand/lead-time records,
+ * returning one row per item.
  */
-import { type Explained, explain } from '@logistics-ts/core'
+export { type Explained, explain } from '@logistics-ts/core'
 
-/** Package identifier, used for scaffold smoke tests. */
-export const PACKAGE_NAME = '@logistics-ts/inventory'
-
-export type { Explained }
-export { explain }
+export {
+  type SafetyStockMethod,
+  type SafetyStockInput,
+  type SafetyStockOptions,
+  safetyStock,
+} from './safety-stock'
+export {
+  type ReorderPointInput,
+  reorderPoint,
+  type OrderUpToInput,
+  orderUpToLevel,
+} from './reorder-point'
+export {
+  type EoqInput,
+  eoq,
+  type EpqInput,
+  epq,
+  type QuantityDiscountTier,
+  type QuantityDiscountInput,
+  type QuantityDiscountResult,
+  eoqWithQuantityDiscounts,
+} from './eoq'
+export { type CoverageOptions, type CoverageRow, coverage } from './coverage'
+export { type TurnoverOptions, type TurnoverRow, turnover } from './turnover'
+export { type IssueFlag, type Issue, type IssuesOptions, issues } from './issues'

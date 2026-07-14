@@ -16,7 +16,7 @@ inputs, reasoning, and citations behind it — because the primary consumers are
 humans and AI agents reading the types and TSDoc directly.
 
 pnpm monorepo. ESM-only, TypeScript strict. Status: M0 scaffold, M1 core, M2
-classification, M3 forecasting done. **Next: M4 inventory** (still a stub today).
+classification, M3 forecasting, M4 inventory done. **Next: M5 agent surface & release.**
 
 ## Session start
 

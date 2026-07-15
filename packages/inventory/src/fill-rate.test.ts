@@ -40,6 +40,15 @@ describe('fillRate', () => {
     expect(result.warnings?.[0]).toMatch(/clamped to 0/)
   })
 
+  it('matches the values documented in its own @example (doctest guard)', () => {
+    // Guards against @example / code drift — an @example that disagrees with the
+    // code is a product defect here (agents read the TSDoc directly).
+    const { value } = fillRate({ safetyStock: 50, sigmaLeadTime: 50, orderQuantity: 200 })
+    expect(value.fillRate).toBeCloseTo(0.97917, 5)
+    expect(value.expectedShortagePerCycle).toBeCloseTo(4.1658, 4)
+    expect(value.z).toBe(1)
+  })
+
   it('throws naming a non-positive σ_L or Q', () => {
     expect(() => fillRate({ safetyStock: 10, sigmaLeadTime: 0, orderQuantity: 200 })).toThrow(
       /sigmaLeadTime/,
@@ -60,6 +69,16 @@ describe('safetyStockForFillRate', () => {
     expect(result.value.z).toBeCloseTo(1, 4)
     expect(result.value.safetyStock).toBeCloseTo(50, 2)
     expect(result.method).toBe('safety-stock-for-fill-rate')
+  })
+
+  it('matches the values documented in its own @example (doctest guard)', () => {
+    const { value } = safetyStockForFillRate({
+      targetFillRate: 0.97917,
+      sigmaLeadTime: 50,
+      orderQuantity: 200,
+    })
+    expect(value.safetyStock).toBeCloseTo(50, 2)
+    expect(value.z).toBeCloseTo(1, 3)
   })
 
   it('produces a negative safety stock (and warns) for a low target fill rate', () => {

@@ -59,7 +59,16 @@ agree — a wrong explanation is worse than none in an explainable library.
 - **Compute every `@example` value from the implementation** (best: mirror an
   existing test assertion). `smape`'s `@example` said `≈ 6.13` where the code (and
   its own test) gives `≈ 10.03` — an executable-looking doc value that was never
-  executed. (Caught: PR#12 `metrics.ts`.)
+  executed. (Caught: PR#12 `metrics.ts`.) **Recurred PR#20 `fill-rate.ts`:** the
+  `fillRate` `@example` said `≈ 0.9583 / ESC ≈ 8.33` while the file's *own passing
+  test* asserted `0.97917 / 4.1657` — the ESC was `100·G(1)` (the σ_L factor
+  doubled), and the wrong `0.9583` then propagated into the *linked*
+  `safetyStockForFillRate` example, which doesn't round-trip to it. Two lessons:
+  (a) when two `@example`s form a round-trip (`f(g(x))`), pick the numbers so they
+  actually invert each other and verify by running both; (b) the durable fix is a
+  **doctest-style test** — assert the documented example inputs produce the
+  documented outputs, so `@example`/code drift fails CI. Add one whenever an
+  `@example` carries load-bearing numbers.
 - **A warning must state the cause the code actually established, not the most
   common one.** `autoForecast`'s fallback warned "series too short" but the same
   branch fires when a constant series makes every backtest MASE non-finite; track

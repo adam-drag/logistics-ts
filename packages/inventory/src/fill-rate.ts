@@ -23,13 +23,7 @@
  * @see Silver, E.A., Pyke, D.F. & Peterson, R. (1998). Inventory Management and
  *   Production Planning and Scheduling, 3rd ed.
  */
-import {
-  type Explained,
-  explain,
-  inverseNormalCdf,
-  normalCdf,
-  normalLossFunction,
-} from '@logistics-ts/core'
+import { type Explained, explain, inverseNormalCdf, normalLossFunction } from '@logistics-ts/core'
 import { round } from './round'
 
 const SPT_CITATION =
@@ -76,7 +70,7 @@ export interface FillRateResult {
  * @example
  * ```ts
  * fillRate({ safetyStock: 50, sigmaLeadTime: 50, orderQuantity: 200 }).value
- * // { fillRate: ≈ 0.9583, expectedShortagePerCycle: ≈ 8.33, z: 1 }
+ * // { fillRate: ≈ 0.97917, expectedShortagePerCycle: ≈ 4.1658, z: 1 }
  * ```
  * @see Silver, Pyke & Thomas (2017), §7 — fill rate and expected shortage per cycle.
  */
@@ -154,8 +148,8 @@ export interface SafetyStockForFillRateResult {
  *
  * @example
  * ```ts
- * safetyStockForFillRate({ targetFillRate: 0.9583, sigmaLeadTime: 50, orderQuantity: 200 }).value
- * // { safetyStock: ≈ 50, z: ≈ 1 }
+ * safetyStockForFillRate({ targetFillRate: 0.97917, sigmaLeadTime: 50, orderQuantity: 200 }).value
+ * // { safetyStock: ≈ 50, z: ≈ 1 }  — round-trips with the fillRate example above
  * ```
  * @see Silver, Pyke & Thomas (2017), §7 — inverting the loss function for a target fill rate.
  */
@@ -220,7 +214,7 @@ export interface ServiceMetricsInput {
 }
 
 export interface ServiceMetricsResult {
-  /** Cycle service level α = Φ(z) — probability a cycle does not stock out (echoes the input target). */
+  /** Cycle service level α — the input target, echoed back (probability a cycle does not stock out). */
   cycleServiceLevel: number
   /** Fill rate β = 1 − ESC/Q delivered by the same safety stock. */
   fillRate: number
@@ -268,14 +262,11 @@ export function serviceMetrics(input: ServiceMetricsInput): Explained<ServiceMet
   const fill = fillRate({ safetyStock, sigmaLeadTime, orderQuantity })
   const { fillRate: beta, expectedShortagePerCycle } = fill.value
 
-  // Recover α via Φ(z) so the reported cycle service level and the fill rate
-  // share the same erf approximation and stay internally consistent (rather
-  // than echoing the raw input against a Φ-derived β).
-  const alpha = normalCdf(z)
-
   return explain(
     {
-      cycleServiceLevel: alpha,
+      // Echo the caller's target α verbatim — a caller who asks for 0.95 reads
+      // 0.95 back. β below is derived from z, so the α/β comparison stands.
+      cycleServiceLevel,
       fillRate: beta,
       safetyStock,
       z,
@@ -326,7 +317,7 @@ function solveLossFunction(target: number): number {
 
 function requireFinite(name: string, value: number): void {
   if (!Number.isFinite(value)) {
-    throw new Error(`fillRate: ${name} must be finite (got ${value})`)
+    throw new Error(`${name} must be finite (got ${value})`)
   }
 }
 

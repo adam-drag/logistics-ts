@@ -4,5 +4,11 @@ dist/
 *.log
 .DS_Store
 
-# Local agent/editor config
-.claude/
+# Local agent/editor config — personal settings stay local, shared skills are tracked
+.claude/*
+!.claude/skills/
+
+# Private internal planning/research docs — kept local, not published
+concept.md
+research.md
+plans/

@@ -38,6 +38,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@logistics-ts/core": "workspace:*"
+    "@logistics-ts/classification": "workspace:*",
+    "@logistics-ts/core": "workspace:*",
+    "@logistics-ts/forecasting": "workspace:*"
   }
 }

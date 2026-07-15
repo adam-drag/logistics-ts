@@ -1,6 +1,6 @@
 {
   "name": "logistics-ts",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A modular TypeScript supply-chain intelligence toolkit — forecasting, safety stock, ABC/XYZ classification, and replenishment primitives. AI-agent-friendly.",
   "license": "MIT",
   "type": "module",

@@ -144,5 +144,10 @@ Run `pnpm check` before opening a PR. CI runs the same on Node 20/22/24.
 - Test: **vitest** (`packages/*/src/**/*.test.ts`).
 - Lint/format: **biome**.
 - Versioning/publish: **changesets** (packages fixed-versioned together in 0.x).
+  `pnpm changeset` on any consumer-visible PR. On push to `main`,
+  `.github/workflows/release.yml` opens/updates a "Version Packages" PR via
+  `changesets/action`; merging that PR runs `pnpm release` (build + `changeset
+  publish`) and publishes to npm using the `NPM_TOKEN` repo secret. No manual
+  `npm publish` needed.
 - Examples: **tsx** (`pnpm examples`, or `pnpm example:quickstart` etc.); the
   `examples/` workspace typechecks as part of `pnpm check`.

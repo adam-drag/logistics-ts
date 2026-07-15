@@ -17,8 +17,10 @@ humans and AI agents reading the types and TSDoc directly.
 
 pnpm monorepo. ESM-only, TypeScript strict. Status: M0 scaffold, M1 core, M2
 classification, M3 forecasting, M4 inventory, M5 agent surface (skills, examples,
-llms.txt, README, API map) done. **Remaining before 0.1.0: `npm publish` +
-Context7 submission** (need the npm org owner).
+llms.txt, README, API map) done. Release automation is wired up
+(`.github/workflows/release.yml`, changesets version-PR bot + npm publish on merge).
+**Remaining before 0.1.0: merge the first "Version Packages" PR to publish 0.1.0,
+then Context7 submission.**
 
 ## Session start
 

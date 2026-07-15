@@ -1,6 +1,6 @@
 {
   "name": "@logistics-ts/classification",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "ABC, XYZ, FSN, ABC-XYZ matrix, and demand-pattern (SBC) classification for logistics-ts.",
   "license": "MIT",
   "type": "module",

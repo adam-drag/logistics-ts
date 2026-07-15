@@ -1,6 +1,6 @@
 {
   "name": "logistics-ts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Explainable supply-chain algorithms for TypeScript: safety stock, reorder point, EOQ, ABC/XYZ classification & demand forecasting (Croston/SBA/TSB) — dependency-light, built for humans and AI agents.",
   "license": "MIT",
   "type": "module",

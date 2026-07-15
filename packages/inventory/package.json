@@ -1,6 +1,6 @@
 {
   "name": "@logistics-ts/inventory",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Safety stock, reorder point, EOQ, coverage, and issue analysis for logistics-ts.",
   "license": "MIT",
   "type": "module",

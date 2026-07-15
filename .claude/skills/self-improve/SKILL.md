@@ -59,12 +59,33 @@ agree — a wrong explanation is worse than none in an explainable library.
 - **Compute every `@example` value from the implementation** (best: mirror an
   existing test assertion). `smape`'s `@example` said `≈ 6.13` where the code (and
   its own test) gives `≈ 10.03` — an executable-looking doc value that was never
-  executed. (Caught: PR#12 `metrics.ts`.)
+  executed. (Caught: PR#12 `metrics.ts`.) **Recurred PR#20 `fill-rate.ts`:** the
+  `fillRate` `@example` said `≈ 0.9583 / ESC ≈ 8.33` while the file's *own passing
+  test* asserted `0.97917 / 4.1657` — the ESC was `100·G(1)` (the σ_L factor
+  doubled), and the wrong `0.9583` then propagated into the *linked*
+  `safetyStockForFillRate` example, which doesn't round-trip to it. Two lessons:
+  (a) when two `@example`s form a round-trip (`f(g(x))`), pick the numbers so they
+  actually invert each other and verify by running both; (b) the durable fix is a
+  **doctest-style test** — assert the documented example inputs produce the
+  documented outputs, so `@example`/code drift fails CI. Add one whenever an
+  `@example` carries load-bearing numbers.
 - **A warning must state the cause the code actually established, not the most
   common one.** `autoForecast`'s fallback warned "series too short" but the same
   branch fires when a constant series makes every backtest MASE non-finite; track
   which condition occurred and word the warning per-cause. (Caught: PR#12
   `auto.ts`, Copilot.)
+- **A hedged claim must stay hedged at EVERY site — the one unqualified sibling is
+  the bug.** `serviceMetrics`'s reasoning bullet asserted "β ≥ α because…" as a law,
+  but β ≥ α is only a *tendency* (holds when Q is large relative to σ_L; false for
+  valid small Q — at Q=5, σ_L=50 the code emits "β = 0.7911 … β ≥ α", self-
+  contradictory). Every *other* site (module doc, `fillRate` TSDoc + reasoning,
+  `serviceMetrics` TSDoc) correctly said "β ≥ α **typically**" — the lone
+  unconditional copy was the defect. When a relationship is stated in multiple
+  places and most hedge it, the unhedged one is almost certainly wrong: grep the
+  file for the claim and make them agree. And when a "usually X" relationship can
+  invert on valid input, don't just hedge the prose — emit a `warnings` entry for
+  the inverted case so it's surfaced honestly, and add a test at inputs that trigger
+  it. (Caught: PR#20 `fill-rate.ts`, `lt-review`.)
 - **An enforced-sounding TSDoc constraint must actually be enforced.**
   `QuantityDiscountInput`'s doc said tiers "must start at a quantity ≤ 1" but
   `eoqWithQuantityDiscounts` never checked it, so a first tier with a gap below it

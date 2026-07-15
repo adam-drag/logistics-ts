@@ -8,7 +8,8 @@ Holt ±damped, Holt-Winters add/mult, Croston/SBA/TSB, seasonal decomposition,
 rolling-origin backtest, MASE-selected autoForecast, accuracy metrics), M4
 inventory (safety stock family + auto, reorder point/order-up-to-level,
 EOQ/EPQ/quantity discounts, coverage, turnover, issue analyser; umbrella
-`InventoryAnalyzer`).
+`InventoryAnalyzer`), M5 agent surface & release (shipped `skills/`, runnable
+`examples/`, `llms.txt`, consumer README, this API map).
 
 ## What this project is
 
@@ -16,6 +17,57 @@ A modular TypeScript supply-chain intelligence toolkit. Pure, dependency-light
 algorithm packages (safety stock, reorder point, EOQ, ABC/XYZ classification,
 demand forecasting) that applications and other agents build MRP/ERP/WMS/
 inventory features on top of. Roadmap: [`plans/v0.1.md`](plans/v0.1.md).
+
+## API map — which function for which problem
+
+Import from the umbrella (`import { core, forecasting, classification, inventory,
+InventoryAnalyzer } from 'logistics-ts'`) or the scoped packages directly. Every
+domain function returns `Explained<T>` (`.value` + `.method` + `.inputs` +
+`.reasoning` + optional `.citations`/`.warnings`).
+
+| I want to… | Use | Package |
+|---|---|---|
+| Map CSV/DB rows onto canonical records | `loadDemand` / `loadStock` / `loadLeadTimes` | core |
+| Make a dense, zero-filled per-item series | `bucketize(demand, 'day'\|'week'\|'month')` | core |
+| Generate a synthetic dataset for a demo | `generateExampleData({ items, periods, seed })` | core |
+| Know if demand is smooth/erratic/intermittent/lumpy | `classifyDemandPattern(series)` | classification |
+| Rank items by value (Pareto) | `abc(items, { by: 'value' })` | classification |
+| Rank items by demand variability | `xyz(series)` | classification |
+| Fast/slow/non-moving split | `fsn(series)` | classification |
+| Value × variability policy matrix | `abcXyzMatrix(abc.value, xyz.value)` | classification |
+| Forecast without picking a method | `autoForecast(series, { horizon })` | forecasting |
+| Forecast with a specific method | `movingAverage`/`ses`/`holt`/`holtWinters`/`croston`/`sba`/`tsb` | forecasting |
+| Score forecast accuracy | `mae`/`rmse`/`mape`/`smape`/`mase`/`bias` (prefer `mase`) | forecasting |
+| Size a safety-stock buffer | `safetyStock(input, { method: 'auto', serviceLevel })` | inventory |
+| Compute the reorder / order-up-to level | `reorderPoint` / `orderUpToLevel` | inventory |
+| Compute an order quantity | `eoq` / `epq` / `eoqWithQuantityDiscounts` | inventory |
+| Days of inventory / turnover | `coverage` / `turnover` | inventory |
+| One "what needs attention" list | `issues(stock, demand, leadTimes, { serviceLevel })` | inventory |
+| Run several analyses over one held dataset | `new InventoryAnalyzer({ demand, stock, leadTimes })` | logistics-ts |
+
+For end-to-end recipes see the shipped skills in
+[`packages/logistics-ts/skills/`](packages/logistics-ts/skills/) and the runnable
+[`examples/`](examples/).
+
+## Gotchas (the same list agents consuming the library get)
+
+- **Zero-fill is mandatory** for forecasting/classification — feed `bucketize`
+  output, not a compacted nonzero-only list; ADI/CV² and the ES recursions are
+  wrong otherwise.
+- **Unit agreement.** `meanDemand` and `meanLeadTime` must share a period unit.
+  `LeadTimeRecord.leadTimeDays` is always in days; when demand is bucketed by
+  week/month, convert lead time before calling `safetyStock`/`reorderPoint`
+  directly. `issues`/`InventoryAnalyzer` do this conversion for you.
+- **`coverage`/`turnover` output is always calendar days**, independent of the
+  input `granularity`; the field name means what it says.
+- **Cycle service level ≠ fill rate.** `serviceLevel` (in `(0, 1)`) controls the
+  per-cycle no-stockout probability, not the fraction of demand filled.
+- **MAPE is undefined at zero demand** — use `mase` for intermittent series;
+  `autoForecast` already selects by MASE.
+- **Sample vs population std.** `standardDeviation`/`variance` default to sample
+  (n−1); pass `population: true` for the biased form.
+- **Everything is pure.** No stored state, no mutation; `InventoryAnalyzer` is a
+  thin façade, not a store.
 
 ## Repository map
 
@@ -25,10 +77,13 @@ packages/
   forecasting/     @logistics-ts/forecasting    — MA/SES/Holt/HW, Croston/SBA/TSB, decompose, backtest, autoForecast, metrics
   classification/  @logistics-ts/classification — ABC/XYZ/FSN/matrix/SBC demand pattern
   inventory/       @logistics-ts/inventory      — safety stock, ROP, EOQ, coverage, turnover, issues
-  logistics-ts/    logistics-ts                 — umbrella re-export (published entry point)
+  logistics-ts/    logistics-ts                 — umbrella re-export + InventoryAnalyzer; ships skills/
+    skills/        forecast-and-replenish, inventory-analysis — agent skills in the published tarball
+examples/          runnable end-to-end scripts (tsx) driven by generateExampleData()
 plans/             milestone plans
 concept.md         original product concept
 research.md        competitive / feasibility / algorithm research
+llms.txt           agent entry point (llmstxt.org): API map + doc links
 ```
 
 ## Dependency direction (enforced by `pnpm deps:check`)
@@ -89,3 +144,5 @@ Run `pnpm check` before opening a PR. CI runs the same on Node 20/22/24.
 - Test: **vitest** (`packages/*/src/**/*.test.ts`).
 - Lint/format: **biome**.
 - Versioning/publish: **changesets** (packages fixed-versioned together in 0.x).
+- Examples: **tsx** (`pnpm examples`, or `pnpm example:quickstart` etc.); the
+  `examples/` workspace typechecks as part of `pnpm check`.

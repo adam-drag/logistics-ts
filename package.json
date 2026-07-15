@@ -25,14 +25,20 @@
     "check": "pnpm lint && pnpm typecheck && pnpm build && pnpm test && pnpm deps:check",
     "changeset": "changeset",
     "version-packages": "changeset version",
-    "release": "pnpm build && changeset publish"
+    "release": "pnpm build && changeset publish",
+    "example:quickstart": "tsx examples/quickstart.ts",
+    "example:forecast-replenish": "tsx examples/forecast-and-replenish.ts",
+    "example:inventory-analysis": "tsx examples/inventory-analysis.ts",
+    "examples": "pnpm example:quickstart && pnpm example:forecast-replenish && pnpm example:inventory-analysis"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@changesets/cli": "^2.27.9",
+    "@types/node": "^26.1.1",
     "dependency-cruiser": "^16.4.2",
     "fast-check": "^4.9.0",
     "tsup": "^8",
+    "tsx": "^4.23.1",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }

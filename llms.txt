@@ -1,0 +1,81 @@
+# logistics-ts
+
+> A modular, dependency-light TypeScript supply-chain toolkit: pure algorithm
+> packages for safety stock, reorder point, EOQ, ABC/XYZ/FSN classification, and
+> demand forecasting (including intermittent-demand Croston/SBA/TSB). It exists so
+> teams building MRP/ERP/WMS/inventory apps stop re-implementing supply-chain
+> mathematics. Every result is **explainable**: functions return the value plus
+> the method, inputs, reasoning, and citations behind it — for humans and for AI
+> agents building on the types and TSDoc directly.
+
+Key facts an implementing agent needs:
+
+- **Install:** `npm i logistics-ts` (umbrella, re-exports everything under
+  `core`/`classification`/`forecasting`/`inventory` namespaces + `InventoryAnalyzer`),
+  or the scoped packages `@logistics-ts/core`, `@logistics-ts/classification`,
+  `@logistics-ts/forecasting`, `@logistics-ts/inventory` for smaller installs.
+- **Zero/near-zero runtime dependencies**, ESM-only, TypeScript strict. Runs
+  unchanged in Node, browser, edge, and Lambda.
+- **The `Explained<T>` contract:** every domain function returns
+  `{ value, method, inputs, reasoning, citations?, warnings? }`. Read `.value` for
+  the number; read the rest to explain or audit it. Low-level numeric primitives
+  (`mean`, `standardDeviation`, `inverseNormalCdf`, …) return plain numbers.
+- **Canonical records:** `DemandRecord { itemId, date, quantity, unitPrice? }`,
+  `StockRecord { itemId, quantity, unitCost? }`,
+  `LeadTimeRecord { itemId, leadTimeDays }`. Map arbitrary rows with
+  `loadDemand`/`loadStock`/`loadLeadTimes`; bucketize demand into a dense,
+  zero-filled series with `bucketize(demand, 'day'|'week'|'month')`.
+- **No data?** `generateExampleData({ items, periods, profile, seed })` returns a
+  reproducible `{ demand, stock, leadTimes }` catalogue.
+
+Common tasks → function:
+- Forecast without choosing a method → `forecasting.autoForecast(series, { horizon })`
+  (classifies demand pattern, backtests candidates, selects by MASE).
+- Classify demand pattern → `classification.classifyDemandPattern(series)`
+  (smooth/erratic/intermittent/lumpy).
+- ABC/XYZ policy matrix → `classification.abc` + `classification.xyz` +
+  `classification.abcXyzMatrix`.
+- Safety stock → `inventory.safetyStock(input, { method: 'auto', serviceLevel })`.
+- Reorder point → `inventory.reorderPoint({ meanDemand, meanLeadTime, safetyStock })`.
+- Order quantity → `inventory.eoq` / `epq` / `eoqWithQuantityDiscounts`.
+- Coverage / turnover (in calendar days) → `inventory.coverage` / `inventory.turnover`.
+- "What needs attention" across a catalogue →
+  `inventory.issues(stock, demand, leadTimes, { serviceLevel })`.
+- Run many analyses over one held dataset →
+  `new InventoryAnalyzer({ demand, stock, leadTimes })`.
+
+Gotchas: feed zero-filled `bucketize` output to forecasting/classification;
+`meanDemand` and `meanLeadTime` must share a period unit (lead time is in days —
+convert when demand is weekly/monthly, or let `issues`/`InventoryAnalyzer` do it);
+`serviceLevel` is a cycle service level in `(0, 1)`, not a fill rate; prefer MASE
+over MAPE for intermittent demand.
+
+## Docs
+
+- [README](README.md): overview, install, quick-start usage, package table.
+- [AGENTS.md](AGENTS.md): full API map ("which function for which problem"),
+  dependency-layering rules, conventions, and the complete gotchas list.
+
+## Skills (end-to-end recipes, shipped in the npm package)
+
+- [forecast-and-replenish](packages/logistics-ts/skills/forecast-and-replenish/SKILL.md):
+  raw records → load → bucketize → classify → autoForecast → safety stock →
+  reorder point → issue flags.
+- [inventory-analysis](packages/logistics-ts/skills/inventory-analysis/SKILL.md):
+  ABC-XYZ classification, coverage/turnover, and the issue analyser, via both the
+  `InventoryAnalyzer` wrapper and the pure functions.
+
+## Examples (runnable)
+
+- [quickstart](examples/quickstart.ts): data → forecast → safety stock → reorder
+  point → EOQ for one item (`pnpm example:quickstart`).
+- [forecast-and-replenish](examples/forecast-and-replenish.ts): the full
+  replenishment plan across a catalogue (`pnpm example:forecast-replenish`).
+- [inventory-analysis](examples/inventory-analysis.ts): ABC-XYZ + coverage +
+  issues via `InventoryAnalyzer` (`pnpm example:inventory-analysis`).
+
+## Optional
+
+- [concept.md](concept.md) and [research.md](research.md): product concept and the
+  competitive/algorithm research (formulas, cutoffs, citations) behind the design.
+- [plans/v0.1.md](plans/v0.1.md): the v0.1 scope and milestone plan.

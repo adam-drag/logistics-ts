@@ -9,31 +9,28 @@
  * Every forecasting method returns an `Explained` {@link Forecast}.
  */
 
-// Result types
-export type { Forecast, ForecastResult } from './types'
-
-// Methods
-export { type MovingAverageOptions, movingAverage } from './moving-average'
-export { type SesOptions, ses } from './ses'
+// Auto selection + backtesting
+export { type AutoForecastOptions, autoForecast } from './auto'
+export {
+  type BacktestOptions,
+  type BacktestResult,
+  backtest,
+  type Forecaster,
+} from './backtest'
+export { type CrostonOptions, croston } from './croston'
 export { type HoltOptions, holt } from './holt'
 export { type HoltWintersOptions, holtWinters } from './holt-winters'
-export { type CrostonOptions, croston } from './croston'
+// Accuracy metrics
+export { bias, type MaseOptions, mae, mape, mase, rmse, smape } from './metrics'
+// Methods
+export { type MovingAverageOptions, movingAverage } from './moving-average'
 export { type SbaOptions, sba } from './sba'
-export { type TsbOptions, tsb } from './tsb'
 export {
   type SeasonalDecomposeOptions,
   type SeasonalDecomposition,
   seasonalDecompose,
 } from './seasonal-decompose'
-
-// Auto selection + backtesting
-export { type AutoForecastOptions, autoForecast } from './auto'
-export {
-  type Forecaster,
-  type BacktestOptions,
-  type BacktestResult,
-  backtest,
-} from './backtest'
-
-// Accuracy metrics
-export { type MaseOptions, mae, rmse, mape, smape, mase, bias } from './metrics'
+export { type SesOptions, ses } from './ses'
+export { type TsbOptions, tsb } from './tsb'
+// Result types
+export type { Forecast, ForecastResult } from './types'

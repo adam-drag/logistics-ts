@@ -17,7 +17,7 @@
  * @see Silver, E.A., Pyke, D.F. & Thomas, D.J. (2017). Inventory and
  *   Production Management in Supply Chains, 4th ed.
  */
-import { type DemandPattern, classifyDemandPattern } from '@logistics-ts/classification'
+import { classifyDemandPattern, type DemandPattern } from '@logistics-ts/classification'
 import { type Explained, explain, inverseNormalCdf, standardDeviation } from '@logistics-ts/core'
 import { round } from './round'
 

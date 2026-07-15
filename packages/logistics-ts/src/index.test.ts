@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { InventoryAnalyzer, classification, core, forecasting, inventory } from './index'
+import { classification, core, forecasting, InventoryAnalyzer, inventory } from './index'
 
 describe('logistics-ts umbrella', () => {
   it('re-exports every focused package under a namespace', () => {

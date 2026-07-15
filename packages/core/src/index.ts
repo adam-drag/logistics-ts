@@ -9,68 +9,64 @@
 export { type Explained, type Explanation, explain } from './explained'
 
 // Data model
-export type { DateInput, DemandRecord, StockRecord, LeadTimeRecord } from './model'
-
-// Tabular input + loaders
-export type {
-  TableSource,
-  TableInput,
-  RowInput,
-  ColumnarInput,
-} from './table/table-source'
+export type { DateInput, DemandRecord, LeadTimeRecord, StockRecord } from './model'
 export {
-  type LoadIssue,
-  type LoadResult,
-  type LoadOptions,
-  type DemandColumnMap,
-  type StockColumnMap,
-  type LeadTimeColumnMap,
-  loadDemand,
-  loadStock,
-  loadLeadTimes,
-} from './table/loader'
-
-// Time
-export {
-  toEpochDay,
-  fromEpochDay,
-  formatEpochDay,
-  isoWeekday,
-} from './time/epoch-day'
-export {
-  type Granularity,
-  type DemandBucket,
-  type DemandSeries,
-  type BucketizeOptions,
-  bucketize,
-} from './time/bucketize'
-
-// Numerics
-export {
-  mean,
-  variance,
-  standardDeviation,
-  coefficientOfVariation,
-  squaredCvOfNonZero,
-  averageDemandInterval,
-} from './numerics/stats'
-export {
-  normalPdf,
-  normalCdf,
   inverseNormalCdf,
+  normalCdf,
   normalLossFunction,
+  normalPdf,
 } from './numerics/normal'
 export {
-  type Objective,
   type NelderMeadOptions,
   type NelderMeadResult,
   nelderMead,
+  type Objective,
 } from './numerics/optimize'
-
+// Numerics
+export {
+  averageDemandInterval,
+  coefficientOfVariation,
+  mean,
+  squaredCvOfNonZero,
+  standardDeviation,
+  variance,
+} from './numerics/stats'
 // Synthetic data
 export {
   type DemandProfile,
-  type GenerateOptions,
   type ExampleDataset,
+  type GenerateOptions,
   generateExampleData,
 } from './synthetic/generate'
+export {
+  type DemandColumnMap,
+  type LeadTimeColumnMap,
+  type LoadIssue,
+  type LoadOptions,
+  type LoadResult,
+  loadDemand,
+  loadLeadTimes,
+  loadStock,
+  type StockColumnMap,
+} from './table/loader'
+// Tabular input + loaders
+export type {
+  ColumnarInput,
+  RowInput,
+  TableInput,
+  TableSource,
+} from './table/table-source'
+export {
+  type BucketizeOptions,
+  bucketize,
+  type DemandBucket,
+  type DemandSeries,
+  type Granularity,
+} from './time/bucketize'
+// Time
+export {
+  formatEpochDay,
+  fromEpochDay,
+  isoWeekday,
+  toEpochDay,
+} from './time/epoch-day'

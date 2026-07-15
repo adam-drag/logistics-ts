@@ -14,7 +14,7 @@
  *
  * Run with:  pnpm example:inventory-analysis
  */
-import { InventoryAnalyzer, core } from 'logistics-ts'
+import { core, InventoryAnalyzer } from 'logistics-ts'
 
 const { generateExampleData } = core
 

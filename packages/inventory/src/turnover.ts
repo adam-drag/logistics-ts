@@ -9,9 +9,9 @@
 import {
   type DemandRecord,
   type Explained,
+  explain,
   type Granularity,
   type StockRecord,
-  explain,
 } from '@logistics-ts/core'
 import { aggregateItems } from './aggregate'
 import { round } from './round'

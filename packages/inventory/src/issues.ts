@@ -17,13 +17,13 @@ import { fsn } from '@logistics-ts/classification'
 import {
   type DemandRecord,
   type Explained,
+  explain,
   type Granularity,
   type LeadTimeRecord,
   type StockRecord,
-  explain,
 } from '@logistics-ts/core'
 import { autoForecast } from '@logistics-ts/forecasting'
-import { DAYS_PER_PERIOD, aggregateItems } from './aggregate'
+import { aggregateItems, DAYS_PER_PERIOD } from './aggregate'
 import { coverage } from './coverage'
 import { reorderPoint } from './reorder-point'
 import { round } from './round'

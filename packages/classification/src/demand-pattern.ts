@@ -14,8 +14,8 @@
  *   495–503.
  */
 import {
-  type Explained,
   averageDemandInterval,
+  type Explained,
   explain,
   squaredCvOfNonZero,
 } from '@logistics-ts/core'

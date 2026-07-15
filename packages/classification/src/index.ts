@@ -6,29 +6,29 @@
  * method selection. Every classifier returns an `Explained` result.
  */
 export {
+  type AbcClassification,
   type AbcItem,
   type AbcOptions,
-  type AbcClassification,
   abc,
 } from './abc'
 export {
-  type XyzOptions,
-  type XyzClassification,
-  xyz,
-} from './xyz'
-export {
-  type FsnOptions,
-  type FsnClassification,
-  fsn,
-} from './fsn'
-export {
-  type AbcXyzClass,
-  type AbcXyzCell,
-  abcXyzMatrix,
-} from './matrix'
-export {
+  classifyDemandPattern,
   type DemandPattern,
   type DemandPatternOptions,
   type DemandPatternResult,
-  classifyDemandPattern,
 } from './demand-pattern'
+export {
+  type FsnClassification,
+  type FsnOptions,
+  fsn,
+} from './fsn'
+export {
+  type AbcXyzCell,
+  type AbcXyzClass,
+  abcXyzMatrix,
+} from './matrix'
+export {
+  type XyzClassification,
+  type XyzOptions,
+  xyz,
+} from './xyz'

@@ -8,29 +8,28 @@
  * returning one row per item.
  */
 export { type Explained, explain } from '@logistics-ts/core'
-
+export { type CoverageOptions, type CoverageRow, coverage } from './coverage'
 export {
-  type SafetyStockMethod,
+  type EoqInput,
+  type EpqInput,
+  eoq,
+  eoqWithQuantityDiscounts,
+  epq,
+  type QuantityDiscountInput,
+  type QuantityDiscountResult,
+  type QuantityDiscountTier,
+} from './eoq'
+export { type Issue, type IssueFlag, type IssuesOptions, issues } from './issues'
+export {
+  type OrderUpToInput,
+  orderUpToLevel,
+  type ReorderPointInput,
+  reorderPoint,
+} from './reorder-point'
+export {
   type SafetyStockInput,
+  type SafetyStockMethod,
   type SafetyStockOptions,
   safetyStock,
 } from './safety-stock'
-export {
-  type ReorderPointInput,
-  reorderPoint,
-  type OrderUpToInput,
-  orderUpToLevel,
-} from './reorder-point'
-export {
-  type EoqInput,
-  eoq,
-  type EpqInput,
-  epq,
-  type QuantityDiscountTier,
-  type QuantityDiscountInput,
-  type QuantityDiscountResult,
-  eoqWithQuantityDiscounts,
-} from './eoq'
-export { type CoverageOptions, type CoverageRow, coverage } from './coverage'
 export { type TurnoverOptions, type TurnoverRow, turnover } from './turnover'
-export { type IssueFlag, type Issue, type IssuesOptions, issues } from './issues'

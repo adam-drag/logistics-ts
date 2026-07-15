@@ -16,7 +16,7 @@
  */
 import type { DemandRecord, LeadTimeRecord, StockRecord } from '../model'
 import { toEpochDay } from '../time/epoch-day'
-import { type RowReader, type TableInput, normalizeInput } from './table-source'
+import { normalizeInput, type RowReader, type TableInput } from './table-source'
 
 /** A single per-row validation problem. */
 export interface LoadIssue {

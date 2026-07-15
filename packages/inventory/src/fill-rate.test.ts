@@ -138,6 +138,19 @@ describe('serviceMetrics', () => {
     expect(result.method).toBe('service-metrics')
   })
 
+  it('surfaces β < α at small Q — β ≥ α is a tendency, not a law', () => {
+    // Q=5 is tiny relative to σ_L=50: one cycle's expected shortage is spread
+    // over very few units, so β (0.7911) falls below α (0.95).
+    const result = serviceMetrics({
+      cycleServiceLevel: 0.95,
+      sigmaLeadTime: 50,
+      orderQuantity: 5,
+    })
+    expect(result.value.fillRate).toBeLessThan(result.value.cycleServiceLevel)
+    expect(result.value.fillRate).toBeCloseTo(0.7911, 3)
+    expect(result.warnings?.[0]).toMatch(/below cycle service level/)
+  })
+
   it('fill rate matches a direct fillRate call on the implied safety stock', () => {
     const sm = serviceMetrics({ cycleServiceLevel: 0.9, sigmaLeadTime: 30, orderQuantity: 120 })
     const direct = fillRate({

@@ -74,6 +74,18 @@ agree — a wrong explanation is worse than none in an explainable library.
   branch fires when a constant series makes every backtest MASE non-finite; track
   which condition occurred and word the warning per-cause. (Caught: PR#12
   `auto.ts`, Copilot.)
+- **A hedged claim must stay hedged at EVERY site — the one unqualified sibling is
+  the bug.** `serviceMetrics`'s reasoning bullet asserted "β ≥ α because…" as a law,
+  but β ≥ α is only a *tendency* (holds when Q is large relative to σ_L; false for
+  valid small Q — at Q=5, σ_L=50 the code emits "β = 0.7911 … β ≥ α", self-
+  contradictory). Every *other* site (module doc, `fillRate` TSDoc + reasoning,
+  `serviceMetrics` TSDoc) correctly said "β ≥ α **typically**" — the lone
+  unconditional copy was the defect. When a relationship is stated in multiple
+  places and most hedge it, the unhedged one is almost certainly wrong: grep the
+  file for the claim and make them agree. And when a "usually X" relationship can
+  invert on valid input, don't just hedge the prose — emit a `warnings` entry for
+  the inverted case so it's surfaced honestly, and add a test at inputs that trigger
+  it. (Caught: PR#20 `fill-rate.ts`, `lt-review`.)
 - **An enforced-sounding TSDoc constraint must actually be enforced.**
   `QuantityDiscountInput`'s doc said tiers "must start at a quantity ≤ 1" but
   `eoqWithQuantityDiscounts` never checked it, so a first tier with a gap below it

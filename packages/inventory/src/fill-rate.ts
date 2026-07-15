@@ -76,9 +76,9 @@ export interface FillRateResult {
  */
 export function fillRate(input: FillRateInput): Explained<FillRateResult> {
   const { safetyStock, sigmaLeadTime, orderQuantity } = input
-  requireFinite('safetyStock', safetyStock)
-  requirePositive('sigmaLeadTime', sigmaLeadTime)
-  requirePositive('orderQuantity', orderQuantity)
+  requireFinite('fillRate', 'safetyStock', safetyStock)
+  requirePositive('fillRate', 'sigmaLeadTime', sigmaLeadTime)
+  requirePositive('fillRate', 'orderQuantity', orderQuantity)
 
   const z = safetyStock / sigmaLeadTime
   const expectedShortagePerCycle = sigmaLeadTime * normalLossFunction(z)
@@ -162,8 +162,8 @@ export function safetyStockForFillRate(
       `safetyStockForFillRate: targetFillRate must be in (0, 1) (got ${targetFillRate})`,
     )
   }
-  requirePositive('sigmaLeadTime', sigmaLeadTime)
-  requirePositive('orderQuantity', orderQuantity)
+  requirePositive('safetyStockForFillRate', 'sigmaLeadTime', sigmaLeadTime)
+  requirePositive('safetyStockForFillRate', 'orderQuantity', orderQuantity)
 
   const targetLoss = ((1 - targetFillRate) * orderQuantity) / sigmaLeadTime
   const z = solveLossFunction(targetLoss)
@@ -254,13 +254,20 @@ export function serviceMetrics(input: ServiceMetricsInput): Explained<ServiceMet
       `serviceMetrics: cycleServiceLevel must be in (0, 1) (got ${cycleServiceLevel})`,
     )
   }
-  requirePositive('sigmaLeadTime', sigmaLeadTime)
-  requirePositive('orderQuantity', orderQuantity)
+  requirePositive('serviceMetrics', 'sigmaLeadTime', sigmaLeadTime)
+  requirePositive('serviceMetrics', 'orderQuantity', orderQuantity)
 
   const z = inverseNormalCdf(cycleServiceLevel)
   const safetyStock = z * sigmaLeadTime
   const fill = fillRate({ safetyStock, sigmaLeadTime, orderQuantity })
   const { fillRate: beta, expectedShortagePerCycle } = fill.value
+
+  const warnings: string[] = []
+  if (beta < cycleServiceLevel) {
+    warnings.push(
+      `fill rate β (${round(beta)}) is below cycle service level α (${cycleServiceLevel}) — the order quantity Q (${orderQuantity}) is small relative to σ_L (${sigmaLeadTime}), so each cycle's expected shortage is spread over few units; β ≥ α is only a tendency, not a law`,
+    )
+  }
 
   return explain(
     {
@@ -283,10 +290,11 @@ export function serviceMetrics(input: ServiceMetricsInput): Explained<ServiceMet
       reasoning: [
         `z = Φ⁻¹(α) = ${round(z)} for cycle service level α = ${cycleServiceLevel}`,
         `SS = z · σ_L = ${round(safetyStock)}`,
-        `fill rate β = ${round(beta)} at this buffer — β ≥ α because β counts unit fills over the order quantity Q, α counts whole cycles`,
+        `fill rate β = ${round(beta)} at this buffer — usually β ≥ α (β counts unit fills over the order quantity Q, α counts whole cycles), though β can fall below α when Q is small relative to σ_L`,
         'cycle service level (α) and fill rate (β) are different service definitions; do not conflate them',
       ],
       citations: [SPT_CITATION],
+      ...(warnings.length > 0 ? { warnings } : {}),
     },
   )
 }
@@ -315,14 +323,14 @@ function solveLossFunction(target: number): number {
   return (lo + hi) / 2
 }
 
-function requireFinite(name: string, value: number): void {
+function requireFinite(fn: string, name: string, value: number): void {
   if (!Number.isFinite(value)) {
-    throw new Error(`${name} must be finite (got ${value})`)
+    throw new Error(`${fn}: ${name} must be finite (got ${value})`)
   }
 }
 
-function requirePositive(name: string, value: number): void {
+function requirePositive(fn: string, name: string, value: number): void {
   if (!Number.isFinite(value) || value <= 0) {
-    throw new Error(`${name} must be finite and positive (got ${value})`)
+    throw new Error(`${fn}: ${name} must be finite and positive (got ${value})`)
   }
 }

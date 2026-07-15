@@ -12,3 +12,6 @@ dist/
 concept.md
 research.md
 plans/
+
+# dev-loop skill scratch state (orchestration state machine — not source)
+.dev-loop/

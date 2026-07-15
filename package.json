@@ -32,15 +32,15 @@
     "examples": "pnpm example:quickstart && pnpm example:forecast-replenish && pnpm example:inventory-analysis"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
+    "@biomejs/biome": "^2.5.3",
     "@changesets/cli": "^2.27.9",
     "@types/node": "^26.1.1",
-    "dependency-cruiser": "^16.4.2",
+    "dependency-cruiser": "^18.1.0",
     "fast-check": "^4.9.0",
     "tsup": "^8",
     "tsx": "^4.23.1",
-    "typescript": "^5.7.2",
-    "vitest": "^3.2.6"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   },
   "pnpm": {
     "overrides": {

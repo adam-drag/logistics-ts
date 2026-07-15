@@ -1,6 +1,6 @@
 {
   "name": "@logistics-ts/forecasting",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "Moving average, exponential smoothing, Croston/SBA/TSB, and auto forecasting for logistics-ts.",
   "license": "MIT",
   "type": "module",

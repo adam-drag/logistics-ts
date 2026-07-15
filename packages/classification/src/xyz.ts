@@ -8,9 +8,9 @@
  * how much buffer it needs.
  */
 import {
+  coefficientOfVariation,
   type DemandSeries,
   type Explained,
-  coefficientOfVariation,
   explain,
 } from '@logistics-ts/core'
 

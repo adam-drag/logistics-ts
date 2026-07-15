@@ -9,28 +9,28 @@
  */
 import {
   type AbcOptions,
-  type XyzOptions,
   abc,
   abcXyzMatrix,
+  type XyzOptions,
   xyz,
 } from '@logistics-ts/classification'
 import {
+  bucketize,
   type DemandRecord,
   type Granularity,
   type LeadTimeRecord,
-  type StockRecord,
-  bucketize,
   mean,
+  type StockRecord,
   standardDeviation,
 } from '@logistics-ts/core'
 import {
   type CoverageOptions,
-  type IssuesOptions,
-  type SafetyStockOptions,
-  type TurnoverOptions,
   coverage as coverageFn,
+  type IssuesOptions,
   issues as issuesFn,
+  type SafetyStockOptions,
   safetyStock as safetyStockFn,
+  type TurnoverOptions,
   turnover as turnoverFn,
 } from '@logistics-ts/inventory'
 

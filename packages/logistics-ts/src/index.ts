@@ -11,13 +11,14 @@
  * Prefer the individual `@logistics-ts/*` packages when you want the smallest
  * install and best tree-shaking. See plans/v0.1.md for the roadmap.
  */
-export * as core from '@logistics-ts/core'
+
 export * as classification from '@logistics-ts/classification'
+export * as core from '@logistics-ts/core'
 export * as forecasting from '@logistics-ts/forecasting'
 export * as inventory from '@logistics-ts/inventory'
 
 export {
+  type AbcXyzOptions,
   InventoryAnalyzer,
   type InventoryAnalyzerInput,
-  type AbcXyzOptions,
 } from './inventory-analyzer'

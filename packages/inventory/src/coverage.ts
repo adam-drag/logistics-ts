@@ -10,12 +10,12 @@
 import {
   type DemandRecord,
   type Explained,
+  explain,
   type Granularity,
   type StockRecord,
-  explain,
 } from '@logistics-ts/core'
 import { autoForecast } from '@logistics-ts/forecasting'
-import { DAYS_PER_PERIOD, aggregateItems } from './aggregate'
+import { aggregateItems, DAYS_PER_PERIOD } from './aggregate'
 import { round } from './round'
 
 export interface CoverageOptions {

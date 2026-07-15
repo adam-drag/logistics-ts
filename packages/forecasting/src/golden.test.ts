@@ -64,13 +64,12 @@ describe('golden: statsforecast CrostonClassic / CrostonSBA', () => {
 })
 
 describe('golden: statsforecast TSB', () => {
-  it.each(fixtures.tsb)(
-    'tsb(α_z=$alphaDemand, α_p=$alphaProbability) matches statsforecast on $series',
-    (f) => {
-      const r = tsb(f.series, { alphaDemand: f.alphaDemand, alphaProbability: f.alphaProbability })
-      expect(r.value.forecast[0]).toBeCloseTo(f.expected, EXACT)
-    },
-  )
+  it.each(
+    fixtures.tsb,
+  )('tsb(α_z=$alphaDemand, α_p=$alphaProbability) matches statsforecast on $series', (f) => {
+    const r = tsb(f.series, { alphaDemand: f.alphaDemand, alphaProbability: f.alphaProbability })
+    expect(r.value.forecast[0]).toBeCloseTo(f.expected, EXACT)
+  })
 })
 
 describe('golden: statsforecast SimpleExponentialSmoothing', () => {
@@ -89,7 +88,9 @@ describe('golden: statsmodels Holt (known init l=y₀, b=y₁−y₀)', () => {
     })
     // 1e-6: identical recursion, but statsmodels accumulates states in its own
     // order of operations.
-    f.expected.forEach((e, h) => expect(r.value.forecast[h]).toBeCloseTo(e, 6))
+    f.expected.forEach((e, h) => {
+      expect(r.value.forecast[h]).toBeCloseTo(e, 6)
+    })
   })
 })
 
@@ -107,7 +108,9 @@ describe('golden: statsmodels Holt-Winters (known heuristic init)', () => {
     // seasonal index at h ≡ 0 (mod m), where fpp3 §8.4 (which this code and
     // R's forecast::hw follow) uses the latest seasonal states — see
     // fixtures/generate.py.
-    f.expected.forEach((e, h) => expect(r.value.forecast[h]).toBeCloseTo(e, 6))
+    f.expected.forEach((e, h) => {
+      expect(r.value.forecast[h]).toBeCloseTo(e, 6)
+    })
     // The one-step fitted path pins the full recursion (level, trend, and
     // every seasonal update); ours is NaN over the init season, so compare
     // from t = m.

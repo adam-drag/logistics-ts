@@ -6,13 +6,13 @@
  * callers use the public bulk-analysis functions instead.
  */
 import {
+  bucketize,
   type DemandRecord,
   type DemandSeries,
   type Granularity,
   type LeadTimeRecord,
-  type StockRecord,
-  bucketize,
   mean,
+  type StockRecord,
   standardDeviation,
 } from '@logistics-ts/core'
 

@@ -1,6 +1,6 @@
 {
   "name": "@logistics-ts/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Core types, column store, data loading, and shared numerics for logistics-ts.",
   "license": "MIT",
   "type": "module",

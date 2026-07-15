@@ -20,37 +20,24 @@ anything.
    is REQUIRED — plain `git diff` does not show brand-new untracked files, so without
    it you would review an empty diff and miss the whole increment. It stages nothing
    and creates no commit.
-2. Invoke the `code-review` and `verify-numerics` skills, and apply the logistics-ts
-   standards below.
+2. **Invoke the `lt-review` skill — it is the authoritative review checklist for this
+   library** and applies it to a diff exactly like this one (it pulls in
+   `code-review` and `verify-numerics` itself). Run its Step 4 checks against this
+   increment. Do NOT duplicate its checklist here — `lt-review` is the single source
+   of truth so the two never drift.
 3. Be specific and actionable. Cite `file:line`. Do not invent nitpicks to look
    thorough — if it's clean, say so.
 
-## logistics-ts review checklist (what actually matters here)
-- **Numeric correctness is the product.** Independently verify the maths — do not
-  trust the code or its comments. Recompute at least one worked value yourself (a
-  quick script is fine) against an authoritative reference (textbook example,
-  z-table point, statsforecast/stockpyl fixture). Golden tests must cite their
-  source.
-- **`@example` / TSDoc accuracy.** Every exported example's numbers must match what
-  the code actually returns AND what the tests assert — a green build does NOT catch
-  an `@example` that contradicts its own tests. Where two examples form a round-trip
-  (`f(g(x))`), the numbers must genuinely invert. Load-bearing example numbers need
-  a doctest-style guard test; flag their absence.
+## The three that catch the most here (full list lives in `lt-review`)
+- **Numeric correctness is the product.** Independently recompute at least one worked
+  value yourself (a quick script is fine) against an authoritative reference — do not
+  trust the code, its comments, or its tests to agree. Golden tests must cite a source.
+- **`@example` / TSDoc accuracy.** Every exported example's numbers must match what the
+  code returns AND what the tests assert — a green build does NOT catch an `@example`
+  that contradicts its own tests. Round-trip examples must genuinely invert; load-
+  bearing numbers need a doctest guard.
 - **`Explained<T>` contract.** Domain functions return `Explained<T>` via `explain()`
-  with accurate `method`/`inputs`/`reasoning`; reasoning bullets must be true. Bare
-  numbers are only allowed for low-level numeric primitives.
-- **Layering & dependencies.** No sideways/upward imports; `core` gains no runtime
-  dependency; any new lower-layer import is declared in `package.json`. (`deps:check`
-  enforces this — confirm it would pass.)
-- **Type safety & strict flags.** No `any`/unsafe casts; `noUncheckedIndexedAccess`
-  and `exactOptionalPropertyTypes` respected (no `undefined` assigned to optional
-  keys — conditional spread instead).
-- **Tests-are-the-product.** New/extended `*.test.ts` beside source: at least one
-  cited golden or textbook fixture, plus property tests where a law exists
-  (monotonicity, scale invariance, conservation, round-trip).
-- **Changeset present** for consumer-visible changes; no hand-edited `version`.
-- **TSDoc completeness**: formula, units, constraints, citation, `@example` on every
-  export.
+  with true `method`/`inputs`/`reasoning`; bare numbers only for low-level primitives.
 
 ## END your reply with EXACTLY this block
 ```

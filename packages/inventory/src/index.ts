@@ -19,6 +19,17 @@ export {
   type QuantityDiscountResult,
   type QuantityDiscountTier,
 } from './eoq'
+export {
+  type FillRateInput,
+  type FillRateResult,
+  fillRate,
+  type SafetyStockForFillRateInput,
+  type SafetyStockForFillRateResult,
+  type ServiceMetricsInput,
+  type ServiceMetricsResult,
+  safetyStockForFillRate,
+  serviceMetrics,
+} from './fill-rate'
 export { type Issue, type IssueFlag, type IssuesOptions, issues } from './issues'
 export {
   type OrderUpToInput,

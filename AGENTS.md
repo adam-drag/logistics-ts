@@ -34,7 +34,7 @@ domain function returns `Explained<T>` (`.value` + `.method` + `.inputs` +
 | Rank items by value (Pareto) | `abc(items, { by: 'value' })` | classification |
 | Rank items by demand variability | `xyz(series)` | classification |
 | Fast/slow/non-moving split | `fsn(series)` | classification |
-| Value × variability policy matrix | `abcXyzMatrix(abc, xyz)` | classification |
+| Value × variability policy matrix | `abcXyzMatrix(abc.value, xyz.value)` | classification |
 | Forecast without picking a method | `autoForecast(series, { horizon })` | forecasting |
 | Forecast with a specific method | `movingAverage`/`ses`/`holt`/`holtWinters`/`croston`/`sba`/`tsb` | forecasting |
 | Score forecast accuracy | `mae`/`rmse`/`mape`/`smape`/`mase`/`bias` (prefer `mase`) | forecasting |

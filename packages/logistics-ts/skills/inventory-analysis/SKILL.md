@@ -46,8 +46,19 @@ import { core, classification, inventory } from 'logistics-ts'
 
 const series = core.bucketize(demand, 'month')
 
-// ABC needs per-item value; XYZ needs the bucketed series.
-const items = /* [{ itemId, volume, unitValue? }] aggregated from demand */
+// ABC needs per-item { itemId, volume, unitValue? } — aggregate it from demand
+// (this is exactly what InventoryAnalyzer.abcXyz does internally).
+const volumeByItem = new Map<string, number>()
+const unitValueByItem = new Map<string, number>()
+for (const record of demand) {
+  volumeByItem.set(record.itemId, (volumeByItem.get(record.itemId) ?? 0) + record.quantity)
+  if (record.unitPrice !== undefined) unitValueByItem.set(record.itemId, record.unitPrice)
+}
+const items = [...volumeByItem.entries()].map(([itemId, volume]) => {
+  const unitValue = unitValueByItem.get(itemId)
+  return unitValue !== undefined ? { itemId, volume, unitValue } : { itemId, volume }
+})
+
 const abc = classification.abc(items, { by: 'value' })
 const xyz = classification.xyz(series)
 const matrix = classification.abcXyzMatrix(abc.value, xyz.value)

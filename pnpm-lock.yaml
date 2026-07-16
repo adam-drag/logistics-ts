@@ -90,6 +90,21 @@ importers:
         specifier: workspace:*
         version: link:../inventory
 
+  packages/planning:
+    dependencies:
+      '@logistics-ts/classification':
+        specifier: workspace:*
+        version: link:../classification
+      '@logistics-ts/core':
+        specifier: workspace:*
+        version: link:../core
+      '@logistics-ts/forecasting':
+        specifier: workspace:*
+        version: link:../forecasting
+      '@logistics-ts/inventory':
+        specifier: workspace:*
+        version: link:../inventory
+
 packages:
 
   '@babel/runtime@7.29.7':

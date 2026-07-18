@@ -38,3 +38,5 @@ export type {
   PlannedOrder,
 } from './lot-sizing/types'
 export { type WagnerWhitinOptions, wagnerWhitin } from './lot-sizing/wagner-whitin'
+export { mrpGrid } from './mrp/grid'
+export type { MrpGridPlan, MrpInput, MrpPlan, MrpRow } from './mrp/types'

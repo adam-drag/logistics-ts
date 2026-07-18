@@ -330,6 +330,17 @@ validate structurally, not trust a partial shape.
     (`receipt > 0 ⇒ PAB === 0`). The vacuous assertion was deleted outright rather
     than kept under an honest name, with a comment recording why, so nobody
     "helpfully" restores it.
+  - **(c) Partially vacuous — the answer is often "it depends which input".** The
+    derivation check can come back nuanced rather than yes/no. `mrpGrid`'s
+    `PAB_t ≥ safetyStock` property is *derivable* (so vacuous) under lot-for-lot,
+    where the netting line forces it — but a *genuine* constraint under the other
+    five lot rules, where receipts come from `lotSize` and it tests that the rule
+    never orders late. The property is therefore only worth having because the
+    generator samples all six rules. So when a property is vacuous over part of its
+    domain, the fix is usually **not** to delete it but to confirm the generator
+    actually reaches the inputs where it bites — and to say so in a comment, since
+    a future "simplification" that pins the generator to one case would silently
+    hollow it out. (M8 increment 2 review.)
   (Caught: M8 increment 1 review; `mrp/grid.test.ts`. Authored by the orchestrator's
   own brief, which called it "the strongest single check on the recursion" — the
   pattern was already written down here and still got authored, so treat this as

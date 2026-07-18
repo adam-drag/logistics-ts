@@ -211,6 +211,22 @@ validate structurally, not trust a partial shape.
 - **Pin tool versions in CI** to match `packageManager` — `pnpm/action-setup` without
   a pinned version can install a pnpm newer than `pnpm@9.7.1` and break lockfile
   reproducibility. (Caught: PR#1 `ci.yml`.)
+- **Declare a dependency when you IMPORT it, not when the layer permits it — and
+  know that `deps:check` cannot catch the difference.** `packages/planning` shipped
+  declaring `@logistics-ts/classification` and `@logistics-ts/forecasting` while
+  importing neither (its only cross-package imports were `core`'s `explain`/`mean`
+  and `inventory`'s `eoq`), so every consumer installed two packages it never used —
+  directly against the dependency-light premise. The conflation is seductive: the
+  layering law says planning *may* import inward from core/classification/
+  forecasting/inventory, and that permission got written down as a dependency set.
+  dependency-cruiser validates import **direction**, not whether a declared
+  dependency is ever used, so `deps:check` stays green and nothing flags it. When
+  scaffolding a package, start `dependencies` at the single entry you need and add
+  each one as its first import lands. Root cause worth noting: the v0.2 plan's own
+  scaffold template pre-listed all four permitted layers, so the plan seeded the
+  defect — a scaffold template is a doc that makes claims about code, and it goes
+  stale/wrong like any other. (Caught: PR#24 M7 review; fixed in `packages/planning`
+  + the plan's Appendix A.)
 - **`noUnusedLocals` does not catch doc-only imports** — tsc counts a TSDoc
   `{@link X}` as a usage, so an import referenced only from doc comments sails
   through typecheck. Biome `correctness/noUnusedImports` + `noUnusedVariables` are

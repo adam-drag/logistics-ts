@@ -122,11 +122,33 @@ finding when the change adds a new package, a new export, or a plan-level decisi
 - The `reasoning[]` bullets and `method`/`inputs` must be **true** — a reasoning
   string that misstates the formula or a stale `method` slug is a finding.
 
-### 4d. Layering & dependencies
+### 4d. Layering & dependencies — check this in BOTH directions
 - A package imports only from **lower** layers, never sideways or up; `core` stays a
-  zero-runtime-dependency leaf. Any new lower-layer import must be declared in that
-  package's `package.json` `dependencies` (`workspace:*`). Confirm `pnpm deps:check`
-  would pass. No `export { foo } from './old'` back-compat re-exports.
+  zero-runtime-dependency leaf. No `export { foo } from './old'` back-compat
+  re-exports.
+- **Forward:** every cross-package import is declared in that package's
+  `package.json` `dependencies` (`workspace:*`).
+- **Reverse — the direction reviewers forget:** every *declared* dependency is
+  actually imported. Diff the two sets mechanically, don't eyeball it:
+  ```bash
+  # declared
+  node -p "Object.keys(require('./packages/<pkg>/package.json').dependencies||{}).join('\n')"
+  # actually imported
+  grep -rhoE "from '@logistics-ts/[a-z-]+'" packages/<pkg>/src | sort -u
+  ```
+  An unused declaration ships an install to every consumer for nothing — a direct hit
+  on the library's dependency-light premise. It is *especially* likely on a new
+  package, where the scaffold tends to pre-list every layer the layering law
+  *permits*: "may import inward from" is a permission, **not** a dependency set.
+- **`pnpm deps:check` cannot catch the reverse direction — do not treat its green as
+  coverage.** dependency-cruiser validates import *direction*; it has no opinion on
+  whether a declared dependency is ever used. This is a documented blind spot, not an
+  oversight in the config. (Missed by five consecutive dev-loop reviews in M7; caught
+  only at PR#24 review, where `planning` declared `classification` + `forecasting`
+  and imported neither.)
+- If the diff **removes** a dependency, confirm `pnpm-lock.yaml` was reconciled —
+  `pnpm check` does **not** update it, so a stale lockfile silently keeps installing
+  the removed package.
 
 ### 4e. Type safety & strict flags
 - **No `any`** (biome errors on it) and no unsafe `as` casts — prefer `unknown` +
@@ -161,6 +183,23 @@ finding when the change adds a new package, a new export, or a plan-level decisi
   re-exported from the umbrella package. A `method` slug used at more than one site
   as a literal instead of a shared constant. These produce no wrong-looking line —
   hunt them deliberately.
+
+### 4k. Presence sweep — what's here that *shouldn't* be (the inverse of 4j)
+Absence-hunting is now habit; its mirror image is not, and it hides the same way —
+a declaration that is simply never used produces no wrong-looking line either, and
+every automated gate stays green because nothing is *incorrect*, merely pointless.
+Sweep for the vestigial:
+- **Declared but never imported**: a `package.json` dependency (see 4d), or an import
+  kept alive only by a TSDoc `{@link}` (`noUnusedLocals` counts that as a use).
+- **Exported but never consumed**: a symbol in `index.ts` that nothing outside the
+  package uses, and that the package's own docs don't present as public API. Public
+  surface is a maintenance promise — don't widen it speculatively.
+- **Accepted but never read**: an option, parameter, or type parameter threaded
+  through a signature that no code path actually consumes. This one is worse than
+  waste — it silently lies to the caller about being honoured.
+- **Added but never reached**: a new file, fixture, or config entry nothing imports.
+Ask of anything speculative: *what fails today if this is deleted?* "Nothing, but a
+later increment will need it" means delete it and add it back with that increment.
 
 ---
 
@@ -213,6 +252,17 @@ changes required for approval in one or two sentences.
 ## Reviewer discipline (internal — do not output)
 - Cite `file:line`. Every finding carries a *why* and a concrete fix — a finding
   without an actionable fix is low-signal noise; either make it actionable or drop it.
+- **Confirm the hunk belongs to the file you're about to blame.** In a large diff
+  containing a brand-new file, that file's `+` lines are *additions of new content*
+  and look identical to *edits of existing content* when scanning or grepping the
+  combined diff. Before writing "`path/to/x.json:3` was hand-edited", re-diff that
+  path alone — `git diff <base> -- <path>` — and check whether the file is new
+  (`git log --oneline <base>..HEAD -- <path>`, or a `new file mode` header). A PR#24
+  review reported the umbrella manifest's version/description as unannounced
+  hand-edits; both lines were actually new-file content in a *different* package's
+  manifest, and the umbrella diff was a single added dependency line. Misattribution
+  is expensive twice over — it costs the author a wasted investigation and it spends
+  the credibility that makes your real findings land.
 - Be fair: distinguish "I'd do it differently" (Minor/Alternative) from "this is
   wrong" (Critical/Major). A convention here (Explained<T>, no `any`, cited tests,
   layering) is **not** a matter of taste — violations are Major, not Minor.

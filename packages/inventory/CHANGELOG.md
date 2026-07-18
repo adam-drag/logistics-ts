@@ -1,5 +1,21 @@
 # @logistics-ts/inventory
 
+## 0.2.0
+
+### Minor Changes
+
+- 60a0f51: Add fill-rate / Type-2 service (β) support to `@logistics-ts/inventory`:
+  `fillRate`, `safetyStockForFillRate`, and `serviceMetrics` — bridging cycle
+  service level (α) and fill rate (β) via the unit normal loss function already in
+  core. Each returns an `Explained<T>` with formula, citations (Silver, Pyke &
+  Thomas 2017), and reasoning that keeps the α ≠ β distinction explicit.
+
+### Patch Changes
+
+- @logistics-ts/classification@0.2.0
+- @logistics-ts/core@0.2.0
+- @logistics-ts/forecasting@0.2.0
+
 ## 0.1.1
 
 ### Patch Changes

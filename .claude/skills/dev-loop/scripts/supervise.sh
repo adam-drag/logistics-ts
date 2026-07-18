@@ -49,14 +49,25 @@ runaway_emitted=0
 declare -A scope_emitted
 
 # Turn a space-separated glob list into a case pattern check.
+#
+# `set -f` is REQUIRED and load-bearing: without it the unquoted $SCOPE_GLOBS in
+# the `for` undergoes pathname expansion, so a pattern like 'packages/foo/**' is
+# expanded by the shell against the filesystem BEFORE it is ever used as a
+# pattern — leaving $g holding concrete top-level paths that no nested file can
+# match. Every file in a subdirectory then reports SCOPE_VIOLATION. (Observed:
+# an entire M7 increment's files, all genuinely in scope, flagged one by one.)
+# With globbing off, the entries stay patterns; note `case` matching lets `*`
+# cross `/`, so 'packages/foo/**' correctly matches 'packages/foo/a/b.ts'.
 in_scope() {
-  local f="$1" g
+  local f="$1" g rc=1
   [ -z "$SCOPE_GLOBS" ] && return 0
+  set -f
   for g in $SCOPE_GLOBS; do
     # shellcheck disable=SC2254
-    case "$f" in $g) return 0 ;; esac
+    case "$f" in $g) rc=0; break ;; esac
   done
-  return 1
+  set +f
+  return $rc
 }
 
 while true; do

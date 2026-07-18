@@ -11,9 +11,18 @@ adjudicate, and report. Determinism comes from a **file-backed state machine**
 (`.dev-loop/state.json`) and **helper scripts**, not from your memory. Re-read
 state from disk after any compaction; never track cycle count in your head.
 
-This is the logistics-ts port. The git model is **local-diff**: Agent B leaves work
-in the working tree, review is against `git diff <baseline>`, and **the human
-commits** — the AI never commits, pushes, or opens a PR.
+This is the logistics-ts port. The git model is **commit-per-increment**: Agent B
+leaves work in the working tree, review is against `git diff <baseline>`, and **A
+commits each APPROVED increment on the feature branch and advances the baseline**.
+A never pushes and never opens a PR — that stays the human's call.
+
+> **Why not pure local-diff (this skill's original design)?** With a baseline
+> frozen at loop start, every later review re-reads all prior increments: by
+> increment 5 of M7 the reviewer would have re-read ~2,700 lines to review ~400,
+> and both supervisor tripwires (`RUNAWAY_DIFF`, scope) measure cumulative work
+> and start crying wolf after increment 1. Committing each approved increment
+> fixes all of it at once, and yields clean per-increment history for the eventual
+> PR. Squash at merge if you want a single commit.
 
 Paths below are relative to this skill dir: `.claude/skills/dev-loop/`.
 
@@ -98,14 +107,25 @@ When B's task-notification arrives, read its final message's `=== DEV-LOOP STATU
   ({{FINDINGS}} from the reviewer, {{CYCLE}} from state). This resumes B with
   context. Set phase back to IMPLEMENTING. Return to step 2 when B reports.
 
-### 5. Next increment / done
-- If todos remain: pick the next, go to step 1 (state.sh `reset-cycle` starts its
-  cycle count fresh). Spawn a fresh B for the new increment (or reuse the named
-  one — fresh is cleaner for unrelated increments).
-- If none remain: stop the supervisor Monitor (TaskStop), give the human a final
-  summary + the full `git diff --stat <baseline>`. **You do not commit** — hand the
-  clean diff to the human. Remind them a changeset is needed for consumer-visible
-  changes if B hasn't added one.
+### 5. Increment approved → commit and advance the baseline
+This step is what keeps every later review cheap and honest. On approval:
+```bash
+git add -A && git commit   # message: what shipped + how it was VERIFIED
+NEW=$(git rev-parse HEAD)
+scripts/state.sh set baseline "$NEW"
+scripts/state.sh reset-cycle
+```
+Then mark the todo done. Write the commit body to record the *evidence* (reference
+values reproduced, property tests added, deviations and why) — future readers get
+the reasoning, not just the change.
+
+- If todos remain: pick the next, go to step 1. **Reuse the named B when the next
+  increment builds on this one's code** (it knows the helpers it just wrote — worth
+  more than a clean context); spawn fresh for genuinely unrelated work.
+- If none remain: stop the supervisor Monitor (TaskStop), run the full `pnpm check`
+  **yourself** as a final gate, and give the human a summary + `git log --oneline
+  origin/main..HEAD` + `git diff --stat origin/main`. **Do not push or open a PR** —
+  ask. Confirm a changeset exists for consumer-visible changes.
 
 ## Supervision (the "peek" loop, done right)
 Do **not** read B's transcript to check on it — the transcript symlink overflows
@@ -135,12 +155,66 @@ Keep it to the three-tier contract:
 - **Needs human** → clearly flagged, with B's SUMMARY/NOTES or the reviewer's
   blocking findings, and the specific decision you need.
 
+## Operating lessons (learned running M7 — these cost real cycles)
+
+**A adjudicates findings; it does not relay them.** The reviewer lacks your context
+and its severities are advisory. In M7 it flagged a missing changeset as Major that
+*you* had deliberately deferred to a later increment — and separately offered "filter
+the input **or** reword the doc" where the right answer was neither (the repo's
+fail-fast invariant demanded a thrown error). Decide, then send B a directive with
+your reasoning. Downgrade what's deferred by design; upgrade what the repo's
+invariants say is worse than the reviewer judged. Blind relaying wastes cycles and
+ships worse code.
+
+**Brief the reviewer with this increment's specific risks, not just "review it."**
+Generic review finds generic issues. Name what you're worried about — "this DP
+optimises one cost expression and reports another; prove they're equivalent for all
+inputs, not just the goldens" — and say which claims to re-derive independently. The
+sharpest M7 findings all came from a named risk, never from the generic sweep.
+
+**Ask "would this test fail on the bug I care about?"** M7's optimality test asserted
+`WW ≤ lotForLot`. It passed, it looked like an optimality guard, and it guarded
+nothing: the heuristics are far from optimal, so a broken DP still beats them
+comfortably. A test that exists and passes can still protect nothing — that's harder
+to spot than a missing test and no build will ever flag it.
+
+**A blocked command is a stop, not a guess.** Instruct B: if a tool call is rejected,
+report `needs_human` with what it *did* observe — never report a `pnpm check` status
+it didn't see. When it escalates, **run the command yourself** rather than bouncing
+it to the human; you usually can. (B did exactly this in M7 and it was right.)
+
+**Invite B to correct the brief.** Your dispatch will contain errors. In M7 B caught
+a wrong module path *and* a swapped argument order in the fixture generator I'd
+specified — either would have produced a plausible-but-wrong golden. Tell B to verify
+your claims against the source and report corrections.
+
+**Never bless a time-bound artifact as "still accurate."** I told B the changeset
+wording "stays accurate"; it went stale one increment later when new exports landed.
+Instead: re-read the changeset (and any doc making claims about the export surface)
+against the code on **every** increment.
+
+**Require self-verification of the tests themselves.** Ask B to mutation-test its own
+work (introduce the plausible bug, confirm tests fail, revert). And have it *verify
+the revert landed* — an M7 `cp` revert failed silently on an interactive prompt and
+briefly left a deliberate bug in the tree.
+
+**Test in the shell the script actually runs under.** A shebang-`bash` script tested
+from a zsh prompt gives meaningless results — zsh doesn't word-split unquoted
+expansions and its `*` doesn't cross `/`. Use `bash <<'BASH' … BASH`.
+
+**Supervisor expectations.** `STUCK` fires whenever the tree is static — which
+includes every review phase and every time B is composing a report; it is usually
+benign, so peek (`git diff --stat`) before acting. If the supervisor produces only
+false positives, turn it off rather than train yourself to ignore it: B's completion
+notification is the real signal.
+
 ## Hard rules
 - Never let A write the feature code — delegate everything buildable to B.
-- Never commit, push, or open a PR. Review is against the local diff; git is the
-  human's job.
+- Commit each **approved** increment and advance the baseline (§5). Never push and
+  never open a PR — ask the human.
 - Never trust in-head cycle counts — always `guard-cycle.sh` before re-dispatch.
-- Never barrel past `needs_human` / exit-3 / STUCK — those are stops, not speed bumps.
+- Never barrel past `needs_human` / exit-3 — those are stops, not speed bumps.
 - Never approve on a green build alone — the reviewer must independently verify a
   numeric value and check `@example` accuracy against the tests.
+- Never accept a status B did not observe, and never assert one yourself.
 - Prefer many small increments over one big one, even at the cost of more loops.

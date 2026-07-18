@@ -7,10 +7,11 @@
  * explainable order plans. Every result is `Explained`.
  *
  * Lot-sizing rules shipped so far: {@link lotForLot}, {@link fixedOrderQuantity},
- * and {@link periodOrderQuantity}. The shared {@link LotPlan} type and the two
+ * {@link periodOrderQuantity} (heuristics), and {@link wagnerWhitin} — the DP
+ * optimum the heuristics approximate. The shared {@link LotPlan} type and the two
  * cost primitives (`accumulateLotCost` coverage form, `simulateLotCost`
- * on-hand-simulation form) serve the rest of the family (Silver-Meal, LUC,
- * Wagner-Whitin) added in later increments.
+ * on-hand-simulation form) serve the rest of the family (Silver-Meal, LUC) added
+ * in later increments.
  */
 export { type Explained, explain } from '@logistics-ts/core'
 export { accumulateLotCost, type LotSizingCost, simulateLotCost } from './lot-sizing/cost'
@@ -29,3 +30,4 @@ export type {
   LotSizingPlan,
   PlannedOrder,
 } from './lot-sizing/types'
+export { type WagnerWhitinOptions, wagnerWhitin } from './lot-sizing/wagner-whitin'

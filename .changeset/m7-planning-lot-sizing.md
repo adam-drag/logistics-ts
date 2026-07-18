@@ -5,11 +5,19 @@
 Add `@logistics-ts/planning` — a new package for production/inventory planning,
 starting with the lot-sizing family.
 
-Rules: `lotForLot`, `fixedOrderQuantity`, and `periodOrderQuantity` (POQ derives
-its order interval from the EOQ anchor in `@logistics-ts/inventory`). Each takes
-a per-period demand vector plus cost parameters and returns an
-`Explained<LotPlan>` carrying the formula, citations (Nahmias 2009; Silver, Pyke
-& Thomas 2017), and reasoning behind every planned order.
+Heuristic rules: `lotForLot`, `fixedOrderQuantity`, and `periodOrderQuantity`
+(POQ derives its order interval from the EOQ anchor in `@logistics-ts/inventory`).
+
+Optimal rule: `wagnerWhitin` — the O(T²) dynamic program over the
+zero-inventory property that yields the provably minimum-cost plan the
+heuristics approximate, golden-tested against Python `stockpyl`'s
+`wagner_whitin` (Snyder & Shen, *Fundamentals of Supply Chain Theory* 2e,
+Example 3.9).
+
+Each takes a per-period demand vector plus cost parameters and returns an
+`Explained<LotPlan>` carrying the formula, citations (Wagner & Whitin 1958;
+Nahmias 2009; Silver, Pyke & Thomas 2017), and reasoning behind every planned
+order.
 
 Also exposes the shared `LotPlan` result type and two low-level cost primitives
 sharing one end-of-period holding convention: `accumulateLotCost` (coverage form,

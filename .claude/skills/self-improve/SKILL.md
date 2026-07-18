@@ -231,6 +231,26 @@ validate structurally, not trust a partial shape.
   stale seasonal index at h ≡ 0 mod m) that hand-computed tests could never catch —
   a fixture run against the reference is part of the milestone, not a follow-up.
   (Caught: PR#12 review; fixed by `fixtures/generate.py` + `golden.test.ts`.)
+- **A test can exist, pass, and guard nothing — check that it can actually fail on
+  the bug it names.** `wagnerWhitin`'s optimality was "covered" by a property
+  asserting `WW ≤ lotForLot` and `≤ periodOrderQuantity`. It passed, it read like an
+  optimality guard, and it was nearly worthless: those heuristics are typically *far*
+  from optimal, so a subtle off-by-one in the DP's holding coefficient still beat
+  them comfortably. Meanwhile `reasoning[]` told agents the result was "provably
+  optimal". The fix was a decisive guard — brute force over all `2^T` order-period
+  subsets for `T ≤ 8`, scored with the **reported** cost model, asserting equality
+  with the DP. Scoring candidates with the reported model pinned two things at once:
+  that the DP genuinely minimises, and that its internal incremental recurrence
+  agrees with the `accumulateLotCost` expression it reports. Ask of every test:
+  *what mutation would this catch?* If the honest answer is "none I care about", it
+  is decoration. Mutation-test the real ones to prove they bite — and verify your
+  revert landed. (Caught: M7 increment 3 review; `wagner-whitin.test.ts`.)
+- **When a function claims something to agents, the claim needs its own test.** The
+  strength of the guard should match the strength of the claim: "provably optimal"
+  earns a brute-force equality test, and "NOT optimal, can be arbitrarily worse"
+  (`silverMeal`) earns both a strictly-worse-than-WW case and an assertion that the
+  disclaiming prose is still present. A claim no test defends will quietly become
+  false. (M7 increments 3–4.)
 - **State the std convention.** Sample (n−1) is the default; population (n) is
   opt-in. Mismatching it against a reference is a common golden-test discrepancy —
   check the reference's convention before loosening tolerance.

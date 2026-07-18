@@ -39,9 +39,14 @@ the code's own passing tests — a defect a green `pnpm check` cannot see.
 
 ## Design decisions (and why)
 
-- **Review the local `git diff`, not a PR.** No commits, no pushes, no `gh`. Git
-  stays the human's job; the AI never touches history. Baseline = HEAD when the loop
-  starts; the reviewer reads `git diff <baseline>`.
+- **Review the local `git diff`, not a PR — and commit each approved increment.**
+  No pushes, no `gh`; opening a PR stays the human's call. A commits an increment
+  once it's approved and advances the baseline, so the next review sees only the new
+  work. *This reverses the original design.* A frozen baseline meant every later
+  review re-read all prior increments (by M7's increment 5: ~2,700 lines re-read to
+  review ~400) and made both supervisor tripwires measure cumulative work, so they
+  cried wolf after increment 1. Per-increment commits fix both and give the eventual
+  PR clean history; squash at merge if you want one commit.
 - **Small increments are mandatory, not a nicety.** For this library the natural
   unit is one export + its cited tests (one lot-sizing rule, not the whole family).
   Small bounded tasks produce cleaner code and fewer hallucinations, and — critically
@@ -121,7 +126,21 @@ Env knobs for `supervise.sh` (set inline in the Monitor command):
 | `POLL_SECS` | 30 | how often the watchdog checks the tree |
 | `STALL_SECS` | 300 | no tree change for this long → `STUCK` |
 | `DIFF_BUDGET` | 800 | changed lines above this → `RUNAWAY_DIFF` |
-| `SCOPE_GLOBS` | _(unset)_ | space-separated globs; a changed file outside them → `SCOPE_VIOLATION` |
+| `SCOPE_GLOBS` | _(unset)_ | space-separated **patterns** (not expanded); a changed file outside them → `SCOPE_VIOLATION` |
+
+`SCOPE_GLOBS` entries are matched with `case`, with pathname expansion disabled
+(`set -f` in `in_scope`) — without that the shell expands `packages/foo/**` against
+the filesystem *before* it is used as a pattern, and every nested file falsely
+reports `SCOPE_VIOLATION`. Since `case` lets `*` cross `/`, `packages/foo/**`
+correctly matches `packages/foo/a/b.ts`. Test any change to this under **bash**
+(the shebang), not an interactive zsh — the two differ on word splitting and on
+whether `*` crosses `/`.
+
+**Expect benign `STUCK` events**: the tripwire fires whenever the working tree is
+static, which includes every review phase and every time B is composing its report.
+Peek with `git diff --stat` before reacting. If the supervisor is only producing
+false positives, stop it — B's completion notification is the real signal, and a
+watchdog you've trained yourself to ignore is worse than none.
 
 Cycle limit: `state.sh init --max N` (default 10).
 

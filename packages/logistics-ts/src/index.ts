@@ -5,7 +5,7 @@
  * applications and AI agents can reach everything from a single import:
  *
  * ```ts
- * import { core, inventory, classification, forecasting } from 'logistics-ts'
+ * import { core, inventory, classification, forecasting, planning } from 'logistics-ts'
  * ```
  *
  * Prefer the individual `@logistics-ts/*` packages when you want the smallest
@@ -16,6 +16,7 @@ export * as classification from '@logistics-ts/classification'
 export * as core from '@logistics-ts/core'
 export * as forecasting from '@logistics-ts/forecasting'
 export * as inventory from '@logistics-ts/inventory'
+export * as planning from '@logistics-ts/planning'
 
 export {
   type AbcXyzOptions,

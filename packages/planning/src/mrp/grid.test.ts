@@ -1,5 +1,6 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
+import { type LotSizeOptions, lotSize } from '../lot-sizing/lot-size'
 import { mrpGrid } from './grid'
 
 describe('mrpGrid', () => {
@@ -193,9 +194,15 @@ describe('mrpGrid', () => {
         fc.array(fc.nat({ max: 200 }), { maxLength: 20 }),
         fc.array(fc.nat({ max: 200 }), { maxLength: 20 }),
         fc.nat({ max: 500 }),
-        (grossRequirements, receipts, onHand) => {
+        fc.nat({ max: 100 }),
+        (grossRequirements, receipts, onHand, safetyStock) => {
           const scheduledReceipts = receipts.slice(0, grossRequirements.length)
-          const { rows } = mrpGrid({ grossRequirements, scheduledReceipts, onHand }).value
+          const { rows } = mrpGrid({
+            grossRequirements,
+            scheduledReceipts,
+            onHand,
+            safetyStock,
+          }).value
 
           expect(rows).toHaveLength(grossRequirements.length)
 
@@ -205,15 +212,18 @@ describe('mrpGrid', () => {
           for (const row of rows) {
             const expectedNet = Math.max(
               0,
-              row.grossRequirements - previousBalance - row.scheduledReceipts,
+              row.grossRequirements + safetyStock - previousBalance - row.scheduledReceipts,
             )
             expect(row.netRequirements).toBe(expectedNet)
-            // lot-for-lot: the receipt is exactly the net requirement...
+            // lot-for-lot (the default rule here): the receipt is exactly the
+            // net requirement...
             expect(row.plannedOrderReceipt).toBe(row.netRequirements)
             // ...and therefore tight — if you had to order, you ordered just
-            // enough and finished the period at zero, never over-ordering.
+            // enough and finished the period ON the floor, never over-ordering.
+            // This holds for lot-for-lot ONLY; see the all-rules property below
+            // for what survives when a rule may order early.
             if (row.plannedOrderReceipt > 0) {
-              expect(row.projectedAvailableBalance).toBe(0)
+              expect(row.projectedAvailableBalance).toBe(safetyStock)
             }
             expect(row.projectedAvailableBalance).toBeGreaterThanOrEqual(0)
             expect(row.netRequirements).toBeGreaterThanOrEqual(0)
@@ -222,5 +232,182 @@ describe('mrpGrid', () => {
         },
       ),
     )
+  })
+
+  describe('safety-stock floor', () => {
+    it('reproduces a worked grid with a non-zero floor (hand-derived)', () => {
+      // HAND-DERIVED — not a textbook golden. Standard MRP netting against a
+      // safety-stock floor (Orlicky; Jacobs & Chase), lot-for-lot, no offset.
+      //
+      // onHand = 30, safetyStock = 10, GR = [20, 15, 0, 25, 30], SR = [0, 0, 10, 0, 0]
+      //
+      //  t | GR | SR | PAB_prev | net = max(0, GR+SS−PAB_prev−SR) | PORcpt | PAB
+      //  0 | 20 |  0 |   30     | max(0, 20+10−30− 0) =  0        |   0    | 30+0+0−20   = 10
+      //  1 | 15 |  0 |   10     | max(0, 15+10−10− 0) = 15        |  15    | 10+0+15−15  = 10
+      //  2 |  0 | 10 |   10     | max(0,  0+10−10−10) =  0        |   0    | 10+10+0−0   = 20
+      //  3 | 25 |  0 |   20     | max(0, 25+10−20− 0) = 15        |  15    | 20+0+15−25  = 10
+      //  4 | 30 |  0 |   10     | max(0, 30+10−10− 0) = 30        |  30    | 10+0+30−30  = 10
+      //
+      // The balance sits exactly on the floor of 10 whenever an order is placed. ✓
+      const rows = mrpGrid({
+        grossRequirements: [20, 15, 0, 25, 30],
+        scheduledReceipts: [0, 0, 10, 0, 0],
+        onHand: 30,
+        safetyStock: 10,
+      }).value.rows
+      expect(rows.map((r) => r.netRequirements)).toEqual([0, 15, 0, 15, 30])
+      expect(rows.map((r) => r.plannedOrderReceipt)).toEqual([0, 15, 0, 15, 30])
+      expect(rows.map((r) => r.projectedAvailableBalance)).toEqual([10, 10, 20, 10, 10])
+      expect(rows.map((r) => r.grossRequirements)).toEqual([20, 15, 0, 25, 30])
+      expect(rows.map((r) => r.scheduledReceipts)).toEqual([0, 0, 10, 0, 0])
+      expect(rows.map((r) => r.period)).toEqual([0, 1, 2, 3, 4])
+    })
+
+    it('forces an order the floor alone requires, with zero demand in the period', () => {
+      // GR = 0 everywhere, but onHand (5) sits below the floor (10): net =
+      // max(0, 0 + 10 − 5 − 0) = 5 in period 0, replenishing up to the floor.
+      const rows = mrpGrid({ grossRequirements: [0, 0], onHand: 5, safetyStock: 10 }).value.rows
+      expect(rows.map((r) => r.plannedOrderReceipt)).toEqual([5, 0])
+      expect(rows.map((r) => r.projectedAvailableBalance)).toEqual([10, 10])
+    })
+
+    it('defaults safetyStock to 0, matching an explicit zero', () => {
+      const input = { grossRequirements: [10, 20], onHand: 5 }
+      expect(mrpGrid(input).value.rows).toEqual(mrpGrid({ ...input, safetyStock: 0 }).value.rows)
+    })
+
+    it('rejects a negative or non-finite safetyStock', () => {
+      expect(() => mrpGrid({ grossRequirements: [10], onHand: 0, safetyStock: -1 })).toThrow(
+        /safetyStock/,
+      )
+      expect(() =>
+        mrpGrid({ grossRequirements: [10], onHand: 0, safetyStock: Number.NaN }),
+      ).toThrow(/safetyStock/)
+    })
+
+    it('states the floor and the rule in the explanation', () => {
+      const withFloor = mrpGrid({ grossRequirements: [10], onHand: 0, safetyStock: 7 })
+      expect(withFloor.inputs.safetyStock).toBe(7)
+      expect(withFloor.inputs.lotRule).toBe('lot-for-lot')
+      expect(withFloor.reasoning.some((r) => r.includes('safety-stock floor of 7'))).toBe(true)
+
+      const noFloor = mrpGrid({ grossRequirements: [10], onHand: 0 })
+      expect(noFloor.reasoning.some((r) => r.includes('no safety-stock floor'))).toBe(true)
+    })
+  })
+
+  describe('pluggable lot rules', () => {
+    const RULES: LotSizeOptions[] = [
+      { rule: 'lot-for-lot', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
+      { rule: 'foq', setupCost: 300, holdingCostPerUnitPerPeriod: 2, orderQuantity: 120 },
+      { rule: 'poq', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
+      { rule: 'silver-meal', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
+      { rule: 'least-unit-cost', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
+      { rule: 'wagner-whitin', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
+    ]
+    const grossRequirements = [40, 60, 0, 90, 70, 30, 100]
+    const scheduledReceipts = [20, 0, 0, 0, 50, 0, 0]
+    const onHand = 55
+    const safetyStock = 15
+
+    for (const lotRule of RULES) {
+      it(`delegates lot sizing to '${lotRule.rule}' rather than re-implementing it`, () => {
+        const grid = mrpGrid({
+          grossRequirements,
+          scheduledReceipts,
+          onHand,
+          safetyStock,
+          lotRule,
+        })
+        // The net-requirements SERIES is what gets lot-sized. Recover it from
+        // the lot-for-lot grid, whose netRequirements column is exactly pass 1.
+        const netSeries = mrpGrid({
+          grossRequirements,
+          scheduledReceipts,
+          onHand,
+          safetyStock,
+        }).value.rows.map((r) => r.netRequirements)
+
+        const expected = new Array<number>(grossRequirements.length).fill(0)
+        for (const order of lotSize(netSeries, lotRule).value.orders) {
+          expected[order.period] = (expected[order.period] ?? 0) + order.quantity
+        }
+        expect(grid.value.rows.map((r) => r.plannedOrderReceipt)).toEqual(expected)
+        expect(grid.inputs.lotRule).toBe(lotRule.rule)
+      })
+    }
+
+    it('threads the foq orderQuantity through instead of flattening it', () => {
+      const rows = mrpGrid({
+        grossRequirements: [30, 30, 30],
+        onHand: 0,
+        lotRule: {
+          rule: 'foq',
+          setupCost: 100,
+          holdingCostPerUnitPerPeriod: 1,
+          orderQuantity: 50,
+        },
+      }).value.rows
+      // Every planned receipt must be the fixed lot size Q = 50, never a raw
+      // net requirement of 30 — which is what a flattened/ignored option gives.
+      for (const row of rows) {
+        expect(row.plannedOrderReceipt % 50).toBe(0)
+      }
+      expect(rows.reduce((s, r) => s + r.plannedOrderReceipt, 0)).toBeGreaterThanOrEqual(90)
+    })
+
+    it('lets a horizon rule order early and carry surplus above the floor', () => {
+      // Wagner-Whitin combines periods when setup dominates holding, so at
+      // least one period must be covered by an EARLIER lot: netRequirements > 0
+      // in pass 1 but plannedOrderReceipt === 0 in the rebuilt grid.
+      const rows = mrpGrid({
+        grossRequirements: [50, 50, 50, 50],
+        onHand: 0,
+        safetyStock: 10,
+        lotRule: { rule: 'wagner-whitin', setupCost: 1000, holdingCostPerUnitPerPeriod: 1 },
+      }).value.rows
+      expect(rows.some((r) => r.plannedOrderReceipt === 0 && r.grossRequirements > 0)).toBe(true)
+      expect(rows.some((r) => r.projectedAvailableBalance > 10)).toBe(true)
+      expect(rows.every((r) => r.projectedAvailableBalance >= 10)).toBe(true)
+    })
+
+    it('does not claim lot-for-lot tightness in the reasoning of another rule', () => {
+      const ww = mrpGrid({
+        grossRequirements: [50, 50],
+        onHand: 0,
+        lotRule: { rule: 'wagner-whitin', setupCost: 1000, holdingCostPerUnitPerPeriod: 1 },
+      })
+      expect(ww.reasoning.some((r) => r.includes('wagner-whitin'))).toBe(true)
+      expect(ww.reasoning.some((r) => r.includes('lands on the floor'))).toBe(false)
+      expect(ww.reasoning.some((r) => r.includes('may order early'))).toBe(true)
+    })
+
+    it('holds the floor and non-negative receipts for EVERY rule (property)', () => {
+      // The lot-for-lot tightness assertion is deliberately NOT made here — it
+      // is false for FOQ/POQ/Silver-Meal/Wagner-Whitin, which legitimately
+      // order more than the immediate net. What survives for every rule is the
+      // floor and receipt non-negativity.
+      fc.assert(
+        fc.property(
+          fc.array(fc.nat({ max: 120 }), { maxLength: 12 }),
+          fc.nat({ max: 200 }),
+          fc.nat({ max: 60 }),
+          fc.constantFrom(...RULES),
+          (grossReq, onHandValue, floor, lotRule) => {
+            const { rows } = mrpGrid({
+              grossRequirements: grossReq,
+              onHand: onHandValue,
+              safetyStock: floor,
+              lotRule,
+            }).value
+            for (const row of rows) {
+              expect(row.projectedAvailableBalance).toBeGreaterThanOrEqual(floor)
+              expect(row.plannedOrderReceipt).toBeGreaterThanOrEqual(0)
+              expect(row.netRequirements).toBeGreaterThanOrEqual(0)
+            }
+          },
+        ),
+      )
+    })
   })
 })

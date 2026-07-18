@@ -83,10 +83,11 @@ import { planning } from 'logistics-ts'
 planning.wagnerWhitin([90, 120, 80, 70], { setupCost: 500, holdingCostPerUnitPerPeriod: 2 })
 ```
 
-`@logistics-ts/planning` sits above `@logistics-ts/inventory` in the layering
-and depends on `@logistics-ts/core`, `@logistics-ts/classification`,
-`@logistics-ts/forecasting`, and `@logistics-ts/inventory` (it reuses that
-package's `eoq` as the anchor for the period-order-quantity interval).
+`@logistics-ts/planning` sits above `@logistics-ts/inventory` in the layering, so
+it may import inward from any lower layer — but it declares only what it actually
+uses: `@logistics-ts/core` (the `Explained` result type and numeric primitives)
+and `@logistics-ts/inventory` (it reuses that package's `eoq` as the anchor for
+the period-order-quantity interval).
 
 ## Links
 

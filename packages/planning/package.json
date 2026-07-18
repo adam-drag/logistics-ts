@@ -40,9 +40,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@logistics-ts/classification": "workspace:*",
     "@logistics-ts/core": "workspace:*",
-    "@logistics-ts/forecasting": "workspace:*",
     "@logistics-ts/inventory": "workspace:*"
   }
 }

@@ -1,15 +1,61 @@
 ---
 description: Learn from mistakes and hard-won successes in logistics-ts. Carries an accumulating list of anti-patterns caught in past reviews so they never recur; runs a root-cause + fix + self-patch workflow when PR/review feedback arrives; and captures durable knowledge (a new/extended skill, AGENTS.md, or memory) after deep work on an under-documented area. Invoke at session start, whenever PR/review/Copilot feedback is presented, and after finishing substantial work in a part of the library that lacks a doc.
-when_to_use: Session start (load Known Patterns); when the user shares PR comments, Copilot findings, or reviewer feedback (run the RCA + self-patch workflow); after finishing deep work in an under-documented area (run Knowledge Capture). Keywords "PR feedback", "review comment", "Copilot", "fix this comment", "what did we learn", "capture this".
+when_to_use: Session start (load Known Patterns); when the user shares PR comments, Copilot findings, or reviewer feedback (run the RCA + self-patch workflow); after finishing deep work in an under-documented area (run Knowledge Capture). ALSO — and without being asked — the moment a learning signal fires: you asserted something that turned out wrong, an external reviewer caught what your own process approved, a green gate sat over a real defect, you produced a false positive, you verified in the wrong environment, you corrected the same class of thing twice, a doc/brief/template/plan you authored went stale, or you deviated from documented process and were right to. Being asked "did you learn anything?" means this checkpoint already failed. Keywords "PR feedback", "review comment", "Copilot", "fix this comment", "what did we learn", "capture this", "did you learn".
 ---
 
 # self-improve — logistics-ts
 
-Three modes depending on context:
+Four modes depending on context:
 
 - **Session start** — load the Known Patterns below so past mistakes are never repeated.
 - **PR / review feedback received** — run the RCA + fix + self-patch workflow.
 - **Finished deep work on an under-documented area** — run the Knowledge Capture Workflow.
+- **A learning signal fired** — stop and capture it *without being asked*. See below.
+
+## Ask yourself, don't wait to be asked
+
+The three modes above are all **externally triggered**, and that is a design flaw
+this skill kept hitting: capture happened only when a human requested it. In the M7
+session Adam had to ask twice — "did you learn anything about working in loop mode?"
+and "did this teach you something for `lt-review`?" — and **both times the answer was
+yes, and substantial** (a shell bug, a reversed git model, a one-directional
+dependency rule, a whole missing review category). The material existed; the reflex
+to go get it did not.
+
+**Being asked "did you learn anything?" is a lagging indicator that you missed the
+checkpoint.** Run it yourself instead, at natural boundaries: after an increment is
+approved, after a review verdict lands, after a bug is root-caused, before handing
+work back.
+
+Asked abstractly, "did I learn anything?" reliably returns "no." Ask instead whether
+any of these **concrete signals** fired — each one is evidence that a durable lesson
+is sitting there uncaptured:
+
+- **You were wrong about something you asserted.** (The stockpyl module path and
+  argument order in an M7 brief — the implementer corrected me.)
+- **An external reviewer caught something your own process approved.** Five clean
+  dev-loop reviews passed an unused dependency; that is a checklist gap by
+  definition, not luck.
+- **A gate stayed green over a real defect.** Ask *why* it was structurally blind —
+  that "why" is the lesson (`deps:check` validates import direction, not usage).
+- **You produced a false positive.** It teaches as much as a miss, and costs
+  credibility, so the discipline that prevents it is worth writing down.
+- **You verified something in the wrong environment** and got a meaningless result
+  (a bash script tested under zsh; a package check run on a branch without that
+  package). Twice in one session — that is a pattern, not an accident.
+- **You corrected the same class of thing twice**, or wrote "as I mentioned earlier".
+- **A doc, brief, template, or plan you authored went stale or was wrong.** Scaffold
+  templates and plans make claims about code and rot exactly like comments do.
+- **You deviated from a documented process and it was right to.** The deviation is
+  the lesson; fold it back in rather than re-deriving it next time.
+
+When one fires: fix the instance, find the root cause, then **patch the artifact that
+would have prevented it** — the skill, the checklist, the template, the plan — not
+just the code. Put it where it will be *loaded* at the moment of need: a review gap
+belongs in `lt-review`, an orchestration gap in `dev-loop`, a code anti-pattern here.
+Then verify the patched rule actually catches the original defect; a rule that cannot
+detect the bug it was written for is the documentation equivalent of a test that
+guards nothing.
 
 This skill is committed to the repo: patterns learned here are shared with every
 contributor and agent. It complements — does not replace — Adam's personal

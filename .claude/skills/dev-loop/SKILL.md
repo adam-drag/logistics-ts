@@ -119,6 +119,18 @@ Then mark the todo done. Write the commit body to record the *evidence* (referen
 values reproduced, property tests added, deviations and why) — future readers get
 the reasoning, not just the change.
 
+**Then run the learning checkpoint — this is a required step, not an optional one.**
+Ask whether any `self-improve` learning signal fired during this increment: were you
+wrong about something you put in the brief? Did the reviewer catch something the
+checklist should have? Did a green gate sit over a real defect? Did you produce a
+false positive, verify in the wrong environment, or deviate from documented process
+and turn out right? If yes, capture it **now**, while the context is live — patch
+the artifact that would have prevented it (`lt-review` for a review gap, this skill
+for an orchestration gap, `self-improve` for a code anti-pattern), and verify the
+patched rule actually catches the original defect. Waiting until the human asks
+"did you learn anything?" means the checkpoint already failed; in M7 that happened
+twice, and both times there was real material waiting.
+
 - If todos remain: pick the next, go to step 1. **Reuse the named B when the next
   increment builds on this one's code** (it knows the helpers it just wrote — worth
   more than a clean context); spawn fresh for genuinely unrelated work.

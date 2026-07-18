@@ -1,5 +1,17 @@
 # logistics-ts
 
+## 0.2.0
+
+### Patch Changes
+
+- Updated dependencies [60a0f51]
+- Updated dependencies [a9b4d75]
+  - @logistics-ts/inventory@0.2.0
+  - @logistics-ts/planning@0.2.0
+  - @logistics-ts/classification@0.2.0
+  - @logistics-ts/core@0.2.0
+  - @logistics-ts/forecasting@0.2.0
+
 ## 0.1.1
 
 ### Patch Changes

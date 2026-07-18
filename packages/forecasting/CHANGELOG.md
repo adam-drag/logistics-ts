@@ -1,5 +1,12 @@
 # @logistics-ts/forecasting
 
+## 0.2.0
+
+### Patch Changes
+
+- @logistics-ts/classification@0.2.0
+- @logistics-ts/core@0.2.0
+
 ## 0.1.1
 
 ### Patch Changes

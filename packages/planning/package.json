@@ -1,6 +1,6 @@
 {
   "name": "@logistics-ts/planning",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Lot-sizing, time-phased netting, and BOM explosion (MRP planning) for logistics-ts.",
   "license": "MIT",
   "type": "module",

@@ -307,6 +307,33 @@ validate structurally, not trust a partial shape.
   *what mutation would this catch?* If the honest answer is "none I care about", it
   is decoration. Mutation-test the real ones to prove they bite — and verify your
   revert landed. (Caught: M7 increment 3 review; `wagner-whitin.test.ts`.)
+  **Recurred immediately in M8 — and the second one was a different species, which
+  is why knowing the first didn't prevent it. Learn both:**
+  - **(a) Too-loose bound.** A real constraint, just so slack that the bug fits
+    through it. `WW ≤ lotForLot` genuinely constrains WW — the heuristics are simply
+    so far from optimal that a broken DP still clears the bar.
+  - **(b) Algebraic tautology — derivable from the implementation itself.** `mrpGrid`'s
+    "conservation" property (`onHand + ΣSR + ΣPORcpt === ΣGR + finalPAB`) is the
+    `PAB_t = PAB_{t−1} + SR_t + PORcpt_t − GR_t` line *summed over periods*. It
+    therefore holds for **any** receipt value whatsoever — verified passing with the
+    netting rule replaced by `always 999` and by `always 0`. It was placed to guard
+    the netting rule and could not constrain it in principle.
+  - **The authoring-time check that catches species (b) by inspection, before you
+    write a line:** *which implementation line(s) can this property be algebraically
+    derived from? It cannot constrain any other line.* Conservation follows from the
+    PAB update alone, so it can never test the netting rule. This is strictly earlier
+    and cheaper than "what mutation would this catch?", which only works after the
+    fact. Apply it to any invariant that looks elegant — elegance is often a sign the
+    property *is* the implementation restated.
+  - **Replace, don't rename.** The fix re-derives each row's expected value from the
+    previous row's state and asserts equality, plus a tightness assertion
+    (`receipt > 0 ⇒ PAB === 0`). The vacuous assertion was deleted outright rather
+    than kept under an honest name, with a comment recording why, so nobody
+    "helpfully" restores it.
+  (Caught: M8 increment 1 review; `mrp/grid.test.ts`. Authored by the orchestrator's
+  own brief, which called it "the strongest single check on the recursion" — the
+  pattern was already written down here and still got authored, so treat this as
+  evidence that recognising the smell is not enough without the derivation check.)
 - **When a function claims something to agents, the claim needs its own test.** The
   strength of the guard should match the strength of the claim: "provably optimal"
   earns a brute-force equality test, and "NOT optimal, can be arbitrarily worse"

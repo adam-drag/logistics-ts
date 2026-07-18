@@ -206,9 +206,27 @@ Instead: re-read the changeset (and any doc making claims about the export surfa
 against the code on **every** increment.
 
 **Require self-verification of the tests themselves.** Ask B to mutation-test its own
-work (introduce the plausible bug, confirm tests fail, revert). And have it *verify
-the revert landed* — an M7 `cp` revert failed silently on an interactive prompt and
-briefly left a deliberate bug in the tree.
+work (introduce the plausible bug, confirm tests fail, revert). Two failure modes,
+both observed:
+- **The revert silently fails**, leaving a deliberate bug in the tree (M7).
+- **The mutant never lands**, so every run re-tests the *previous* mutant and three
+  "different" mutations produce identical output — which reads like proof (M8).
+
+Same root cause both times: an interactive `cp -i` alias prompting instead of
+copying, with the failure swallowed. So require the mechanics, not just the
+intent: use `command cp` (bypassing aliases), **`grep`-verify the mutated line
+actually changed before running**, `grep`-verify the revert afterwards, and treat
+identical failure output across supposedly different mutants as a red flag rather
+than corroboration. Ask B to report *which assertion* caught each mutant — a
+per-mutant answer is hard to fake and surfaces an invalid run immediately.
+
+**Apply the derivation check before you specify a property test in a brief.** Ask
+which implementation line the property can be algebraically derived from; it cannot
+constrain any other line. In M8 I specified a conservation property as "the strongest
+single check on the recursion" — it telescoped straight out of the balance-update
+line and held for `always 999`. A vacuous property specified by A costs a full review
+cycle *and* teaches B the wrong standard. (See `self-improve` → "A test can exist,
+pass, and guard nothing" for both species.)
 
 **Test in the shell the script actually runs under.** A shebang-`bash` script tested
 from a zsh prompt gives meaningless results — zsh doesn't word-split unquoted

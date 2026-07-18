@@ -13,6 +13,9 @@
  * the {@link LotPlan} result type and one end-of-period holding convention, via
  * the two cost primitives (`accumulateLotCost` coverage form, `simulateLotCost`
  * on-hand-simulation form), so their costs are directly comparable.
+ *
+ * {@link lotSize} dispatches to any of them by name when the rule is chosen at
+ * runtime rather than at author time.
  */
 export { type Explained, explain } from '@logistics-ts/core'
 export { accumulateLotCost, type LotSizingCost, simulateLotCost } from './lot-sizing/cost'
@@ -22,6 +25,7 @@ export {
 } from './lot-sizing/fixed-order-quantity'
 export { type LeastUnitCostOptions, leastUnitCost } from './lot-sizing/least-unit-cost'
 export { type LotForLotOptions, lotForLot } from './lot-sizing/lot-for-lot'
+export { LOT_RULES, type LotRule, type LotSizeOptions, lotSize } from './lot-sizing/lot-size'
 export {
   type PeriodOrderQuantityOptions,
   periodOrderQuantity,

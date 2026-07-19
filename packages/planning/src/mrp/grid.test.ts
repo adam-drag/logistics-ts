@@ -4,6 +4,19 @@ import { type LotSizeOptions, lotSize } from '../lot-sizing/lot-size'
 import { mrpGrid } from './grid'
 
 describe('mrpGrid', () => {
+  // All six rules, kept in one shared list so every rule-parameterised property
+  // samples the full family. Coverage matters: `PAB >= safetyStock` is VACUOUS
+  // under lot-for-lot (the netting line forces it) and only bites under the
+  // other five, where it tests that the rule never orders late. Do not narrow
+  // this generator.
+  const RULES: LotSizeOptions[] = [
+    { rule: 'lot-for-lot', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
+    { rule: 'foq', setupCost: 300, holdingCostPerUnitPerPeriod: 2, orderQuantity: 120 },
+    { rule: 'poq', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
+    { rule: 'silver-meal', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
+    { rule: 'least-unit-cost', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
+    { rule: 'wagner-whitin', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
+  ]
   it('reproduces a full time-phased record row-for-row (hand-derived)', () => {
     // HAND-DERIVED — not a textbook golden. Worked by hand below, following the
     // standard MRP netting recursion (Orlicky; Jacobs & Chase, MRP time-phased
@@ -33,6 +46,7 @@ describe('mrpGrid', () => {
         projectedAvailableBalance: 25,
         netRequirements: 0,
         plannedOrderReceipt: 0,
+        plannedOrderRelease: 0,
       },
       {
         period: 1,
@@ -41,6 +55,7 @@ describe('mrpGrid', () => {
         projectedAvailableBalance: 15,
         netRequirements: 0,
         plannedOrderReceipt: 0,
+        plannedOrderRelease: 0,
       },
       {
         period: 2,
@@ -49,6 +64,7 @@ describe('mrpGrid', () => {
         projectedAvailableBalance: 0,
         netRequirements: 5,
         plannedOrderReceipt: 5,
+        plannedOrderRelease: 5,
       },
       {
         period: 3,
@@ -57,6 +73,7 @@ describe('mrpGrid', () => {
         projectedAvailableBalance: 0,
         netRequirements: 0,
         plannedOrderReceipt: 0,
+        plannedOrderRelease: 0,
       },
       {
         period: 4,
@@ -65,6 +82,7 @@ describe('mrpGrid', () => {
         projectedAvailableBalance: 0,
         netRequirements: 40,
         plannedOrderReceipt: 40,
+        plannedOrderRelease: 40,
       },
       {
         period: 5,
@@ -73,6 +91,7 @@ describe('mrpGrid', () => {
         projectedAvailableBalance: 0,
         netRequirements: 25,
         plannedOrderReceipt: 25,
+        plannedOrderRelease: 25,
       },
     ])
   })
@@ -89,6 +108,7 @@ describe('mrpGrid', () => {
         projectedAvailableBalance: 25,
         netRequirements: 0,
         plannedOrderReceipt: 0,
+        plannedOrderRelease: 0,
       },
       {
         period: 1,
@@ -97,6 +117,7 @@ describe('mrpGrid', () => {
         projectedAvailableBalance: 15,
         netRequirements: 0,
         plannedOrderReceipt: 0,
+        plannedOrderRelease: 0,
       },
       {
         period: 2,
@@ -105,6 +126,7 @@ describe('mrpGrid', () => {
         projectedAvailableBalance: 0,
         netRequirements: 5,
         plannedOrderReceipt: 5,
+        plannedOrderRelease: 5,
       },
     ])
   })
@@ -162,6 +184,7 @@ describe('mrpGrid', () => {
       projectedAvailableBalance: 0,
       netRequirements: 0,
       plannedOrderReceipt: 0,
+      plannedOrderRelease: 0,
     })
   })
 
@@ -297,14 +320,6 @@ describe('mrpGrid', () => {
   })
 
   describe('pluggable lot rules', () => {
-    const RULES: LotSizeOptions[] = [
-      { rule: 'lot-for-lot', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
-      { rule: 'foq', setupCost: 300, holdingCostPerUnitPerPeriod: 2, orderQuantity: 120 },
-      { rule: 'poq', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
-      { rule: 'silver-meal', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
-      { rule: 'least-unit-cost', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
-      { rule: 'wagner-whitin', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
-    ]
     const grossRequirements = [40, 60, 0, 90, 70, 30, 100]
     const scheduledReceipts = [20, 0, 0, 0, 50, 0, 0]
     const onHand = 55
@@ -405,6 +420,225 @@ describe('mrpGrid', () => {
               expect(row.plannedOrderReceipt).toBeGreaterThanOrEqual(0)
               expect(row.netRequirements).toBeGreaterThanOrEqual(0)
             }
+          },
+        ),
+      )
+    })
+  })
+
+  describe('lead-time offset and planned order releases', () => {
+    it('reproduces a worked grid with a lead-time offset (hand-derived)', () => {
+      // HAND-DERIVED — not a textbook golden. Standard MRP time-phased record
+      // with a lead-time offset (Orlicky; Jacobs & Chase), lot-for-lot, no floor.
+      //
+      // onHand = 20, leadTimePeriods = 2, GR = [10, 0, 40, 30, 0, 50], SR = [0, 0, 15, 0, 0, 0]
+      //
+      // Netting (the balance follows RECEIPTS; the lead time shifts only releases):
+      //  t | GR | SR | PAB_prev | net = max(0, GR−PAB_prev−SR) | PORcpt | PAB
+      //  0 | 10 |  0 |   20     | max(0, 10−20− 0) =  0        |   0    | 20+0+0−10  = 10
+      //  1 |  0 |  0 |   10     | max(0,  0−10− 0) =  0        |   0    | 10
+      //  2 | 40 | 15 |   10     | max(0, 40−10−15) = 15        |  15    | 10+15+15−40 = 0
+      //  3 | 30 |  0 |    0     | max(0, 30− 0− 0) = 30        |  30    |  0
+      //  4 |  0 |  0 |    0     | max(0,  0− 0− 0) =  0        |   0    |  0
+      //  5 | 50 |  0 |    0     | max(0, 50− 0− 0) = 50        |  50    |  0
+      //
+      // Offset left by 2: receipt@2 → release@0, receipt@3 → release@1,
+      // receipt@5 → release@3. All ≥ 0, so nothing is past due.
+      //  release column: [15, 30, 0, 50, 0, 0]
+      const plan = mrpGrid({
+        grossRequirements: [10, 0, 40, 30, 0, 50],
+        scheduledReceipts: [0, 0, 15, 0, 0, 0],
+        onHand: 20,
+        leadTimePeriods: 2,
+      })
+      const rows = plan.value.rows
+      expect(rows.map((r) => r.projectedAvailableBalance)).toEqual([10, 10, 0, 0, 0, 0])
+      expect(rows.map((r) => r.netRequirements)).toEqual([0, 0, 15, 30, 0, 50])
+      expect(rows.map((r) => r.plannedOrderReceipt)).toEqual([0, 0, 15, 30, 0, 50])
+      expect(rows.map((r) => r.plannedOrderRelease)).toEqual([15, 30, 0, 50, 0, 0])
+      expect(plan.value.plannedOrders).toEqual([
+        { releasePeriod: 0, receiptPeriod: 2, quantity: 15, pastDue: false },
+        { releasePeriod: 1, receiptPeriod: 3, quantity: 30, pastDue: false },
+        { releasePeriod: 3, receiptPeriod: 5, quantity: 50, pastDue: false },
+      ])
+      expect(plan.warnings).toBeUndefined()
+    })
+
+    it('asserts the documented @example outputs exactly (doctest)', () => {
+      const plan = mrpGrid({
+        grossRequirements: [0, 30, 20],
+        scheduledReceipts: [0, 20],
+        onHand: 25,
+        leadTimePeriods: 1,
+      })
+      expect(plan.value.rows.map((r) => r.projectedAvailableBalance)).toEqual([25, 15, 0])
+      expect(plan.value.rows.map((r) => r.netRequirements)).toEqual([0, 0, 5])
+      expect(plan.value.rows.map((r) => r.plannedOrderReceipt)).toEqual([0, 0, 5])
+      expect(plan.value.rows.map((r) => r.plannedOrderRelease)).toEqual([0, 5, 0])
+      expect(plan.value.plannedOrders).toEqual([
+        { releasePeriod: 1, receiptPeriod: 2, quantity: 5, pastDue: false },
+      ])
+    })
+
+    it('reproduces increment 2 behaviour exactly at leadTimePeriods = 0', () => {
+      // The offset must be genuinely opt-in: with L = 0 the release column
+      // simply mirrors the receipt column and nothing else moves.
+      const input = {
+        grossRequirements: [40, 60, 0, 90, 70],
+        scheduledReceipts: [20, 0, 0, 0, 50],
+        onHand: 55,
+        safetyStock: 15,
+        lotRule: {
+          rule: 'wagner-whitin',
+          setupCost: 300,
+          holdingCostPerUnitPerPeriod: 2,
+        } satisfies LotSizeOptions,
+      }
+      const explicit = mrpGrid({ ...input, leadTimePeriods: 0 })
+      const defaulted = mrpGrid(input)
+      expect(defaulted.value.rows).toEqual(explicit.value.rows)
+      for (const row of explicit.value.rows) {
+        expect(row.plannedOrderRelease).toBe(row.plannedOrderReceipt)
+      }
+      expect(explicit.value.plannedOrders.every((o) => o.releasePeriod === o.receiptPeriod)).toBe(
+        true,
+      )
+      expect(explicit.warnings).toBeUndefined()
+    })
+
+    describe('past-due releases', () => {
+      // onHand = 0, GR = [25, 0, 40], leadTimePeriods = 2. Net = [25, 0, 40].
+      // receipt@0 → release@−2 (past due by 2), receipt@2 → release@0 (fine).
+      const pastDuePlan = () =>
+        mrpGrid({ grossRequirements: [25, 0, 40], onHand: 0, leadTimePeriods: 2 })
+
+      it('keeps the receipt rather than dropping the demand', () => {
+        const rows = pastDuePlan().value.rows
+        expect(rows.map((r) => r.plannedOrderReceipt)).toEqual([25, 0, 40])
+        expect(rows.map((r) => r.projectedAvailableBalance)).toEqual([0, 0, 0])
+      })
+
+      it('does not clamp the release into period 0', () => {
+        const plan = pastDuePlan()
+        // Period 0 carries ONLY the feasible release (the 40 for period 2), not
+        // the past-due 25 folded in as though it could still be actioned.
+        expect(plan.value.rows.map((r) => r.plannedOrderRelease)).toEqual([40, 0, 0])
+        expect(plan.value.plannedOrders).toEqual([
+          { releasePeriod: -2, receiptPeriod: 0, quantity: 25, pastDue: true },
+          { releasePeriod: 0, receiptPeriod: 2, quantity: 40, pastDue: false },
+        ])
+      })
+
+      it('warns, naming the periods, quantities, and how late each order is', () => {
+        const plan = pastDuePlan()
+        expect(plan.warnings).toBeDefined()
+        const warning = plan.warnings?.join(' ') ?? ''
+        expect(warning).toContain('PAST DUE')
+        expect(warning).toContain('25 units needed in period 0')
+        expect(warning).toContain('released in period -2')
+        expect(warning).toContain('2 period(s) ago')
+        expect(plan.inputs.pastDueOrders).toBe(1)
+      })
+
+      it('emits no warning when every release is feasible', () => {
+        expect(
+          mrpGrid({ grossRequirements: [0, 0, 40], onHand: 0, leadTimePeriods: 2 }).warnings,
+        ).toBeUndefined()
+      })
+    })
+
+    it('rejects a negative, fractional, or non-finite leadTimePeriods', () => {
+      const base = { grossRequirements: [10], onHand: 0 }
+      expect(() => mrpGrid({ ...base, leadTimePeriods: -1 })).toThrow(/leadTimePeriods/)
+      // Fractional is rejected, not rounded: half a bucket is meaningless here.
+      expect(() => mrpGrid({ ...base, leadTimePeriods: 1.5 })).toThrow(
+        /non-negative integer number of periods/,
+      )
+      expect(() => mrpGrid({ ...base, leadTimePeriods: Number.NaN })).toThrow(/leadTimePeriods/)
+    })
+
+    it('narrates each planned order back to its cause, rule, and release', () => {
+      const plan = mrpGrid({
+        grossRequirements: [0, 0, 60],
+        onHand: 0,
+        leadTimePeriods: 1,
+        lotRule: { rule: 'wagner-whitin', setupCost: 100, holdingCostPerUnitPerPeriod: 1 },
+      })
+      const narration = plan.reasoning.join('\n')
+      expect(narration).toContain('planned order of 60')
+      expect(narration).toContain("sized by 'wagner-whitin'")
+      expect(narration).toContain('receive in period 2, release in period 1')
+      expect(plan.inputs.leadTimePeriods).toBe(1)
+    })
+
+    it('summarises instead of narrating every order on a long horizon', () => {
+      // 30 nonzero periods under lot-for-lot ⇒ 30 orders, over the narration cap.
+      const plan = mrpGrid({
+        grossRequirements: new Array<number>(30).fill(10),
+        onHand: 0,
+        leadTimePeriods: 1,
+      })
+      expect(plan.value.plannedOrders).toHaveLength(30)
+      expect(plan.reasoning.filter((r) => r.startsWith('planned order of'))).toHaveLength(0)
+      expect(plan.reasoning.some((r) => r.includes('30 planned orders'))).toBe(true)
+      // The full schedule is still available even when narration summarises.
+      expect(plan.reasoning.some((r) => r.includes('read plannedOrders'))).toBe(true)
+    })
+
+    it('ties every release back to the net requirement that caused it (property)', () => {
+      // DERIVATION CHECK: asserting `release_t === receipt_{t+L}` would be
+      // vacuous — that IS how the column is built. Instead assert the property
+      // against the INDEPENDENTLY recomputed net series and lot plan, which the
+      // release column is never derived from: every planned order must pair a
+      // lotSize-produced receipt with a release exactly L periods earlier, and
+      // the feasible releases must sum to the lot plan minus the past-due part.
+      fc.assert(
+        fc.property(
+          fc.array(fc.nat({ max: 120 }), { maxLength: 12 }),
+          fc.nat({ max: 150 }),
+          fc.nat({ max: 40 }),
+          fc.nat({ max: 4 }),
+          fc.constantFrom(...RULES),
+          (grossRequirements, onHand, safetyStock, leadTimePeriods, lotRule) => {
+            const plan = mrpGrid({
+              grossRequirements,
+              onHand,
+              safetyStock,
+              leadTimePeriods,
+              lotRule,
+            })
+            const { rows, plannedOrders } = plan.value
+
+            // Independent recomputation of pass 1 + pass 2.
+            const netSeries: number[] = []
+            let balance = onHand
+            for (const gross of grossRequirements) {
+              const net = Math.max(0, gross + safetyStock - balance)
+              netSeries.push(net)
+              balance = balance + net - gross
+            }
+            const expectedReceipts = new Array<number>(grossRequirements.length).fill(0)
+            for (const order of lotSize(netSeries, lotRule).value.orders) {
+              expectedReceipts[order.period] =
+                (expectedReceipts[order.period] ?? 0) + order.quantity
+            }
+
+            // Every planned order pairs a genuine lot-sized receipt with a
+            // release exactly L periods earlier.
+            for (const order of plannedOrders) {
+              expect(order.quantity).toBe(expectedReceipts[order.receiptPeriod])
+              expect(order.receiptPeriod - order.releasePeriod).toBe(leadTimePeriods)
+              expect(order.pastDue).toBe(order.releasePeriod < 0)
+            }
+            // Releases conserve the lot plan: everything ordered is either
+            // released inside the horizon or reported past due, never lost.
+            const releasedInHorizon = rows.reduce((s, r) => s + r.plannedOrderRelease, 0)
+            const pastDueQty = plannedOrders
+              .filter((o) => o.pastDue)
+              .reduce((s, o) => s + o.quantity, 0)
+            expect(releasedInHorizon + pastDueQty).toBe(expectedReceipts.reduce((s, q) => s + q, 0))
+            // A past-due order must be warned about, never silently absorbed.
+            expect(plan.warnings !== undefined).toBe(pastDueQty > 0)
           },
         ),
       )

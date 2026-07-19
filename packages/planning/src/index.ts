@@ -39,4 +39,10 @@ export type {
 } from './lot-sizing/types'
 export { type WagnerWhitinOptions, wagnerWhitin } from './lot-sizing/wagner-whitin'
 export { mrpGrid } from './mrp/grid'
-export type { MrpGridPlan, MrpInput, MrpPlan, MrpRow } from './mrp/types'
+export type {
+  MrpGridPlan,
+  MrpInput,
+  MrpPlan,
+  MrpRow,
+  PlannedOrderSchedule,
+} from './mrp/types'

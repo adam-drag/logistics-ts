@@ -48,6 +48,18 @@ export interface MrpInput {
    * above the floor in covered periods.
    */
   lotRule?: LotSizeOptions
+  /**
+   * Procurement lead time expressed in **periods (buckets)** — never days. A
+   * receipt needed in period `t` must be released in period `t −
+   * leadTimePeriods`. Defaults to `0` (release and receipt coincide); must be a
+   * non-negative integer.
+   *
+   * The unit is the grid's own bucket, whatever calendar granularity the caller
+   * bucketed demand at: with weekly buckets, `leadTimePeriods: 2` is two weeks.
+   * Convert a day-denominated supplier lead time into buckets **before** calling
+   * — passing days into a weekly grid silently inflates the offset sevenfold.
+   */
+  leadTimePeriods?: number
 }
 
 /** One row of the time-phased record: the full netting arithmetic for a period. */
@@ -75,12 +87,48 @@ export interface MrpRow {
    * early to cover several periods at once.
    */
   plannedOrderReceipt: number
+  /**
+   * Planned order release in this period (units): the receipt from period
+   * `period + leadTimePeriods`, offset *left* by the lead time — this is the
+   * period in which the order must actually be placed. `0` when none.
+   *
+   * A release whose period would be negative is **past due** and cannot appear
+   * in any row; it is reported in {@link MrpGridPlan.plannedOrders} with
+   * `pastDue: true` and in the result's `warnings`, never silently dropped or
+   * clamped into period 0.
+   */
+  plannedOrderRelease: number
 }
 
-/** The netting-grid payload: one {@link MrpRow} per period, in period order. */
+/**
+ * One planned order as a release/receipt pair — the pairing the row columns
+ * cannot express once a lead-time offset separates them.
+ */
+export interface PlannedOrderSchedule {
+  /**
+   * Period the order must be placed (`receiptPeriod − leadTimePeriods`).
+   * **Negative when the order is past due**, which is reported rather than
+   * clamped — a negative value means the plan is infeasible as scheduled.
+   */
+  releasePeriod: number
+  /** Period the order is needed (units arrive). */
+  receiptPeriod: number
+  /** Order quantity (units). */
+  quantity: number
+  /** `true` when `releasePeriod < 0`, i.e. the release is already in the past. */
+  pastDue: boolean
+}
+
+/** The netting-grid payload: the time-phased rows plus the planned order schedule. */
 export interface MrpGridPlan {
   /** Rows ordered by ascending period, one per entry of `grossRequirements`. */
   rows: MrpRow[]
+  /**
+   * Every planned order as a release/receipt pair, ordered by receipt period.
+   * Includes past-due orders (`releasePeriod < 0`), which have no row to
+   * appear in.
+   */
+  plannedOrders: PlannedOrderSchedule[]
 }
 
 /** An MRP netting-grid result: an {@link MrpGridPlan} wrapped in `Explained`. */

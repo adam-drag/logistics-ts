@@ -28,6 +28,25 @@ anything.
 3. Be specific and actionable. Cite `file:line`. Do not invent nitpicks to look
    thorough — if it's clean, say so.
 
+## If you mutation-test (you probably should — follow this protocol exactly)
+Mutating the source to prove a test bites is the single most valuable check here,
+and it is also the only part of review that can **destroy uncommitted work**. The
+increment under review is almost always uncommitted, so the usual "just restore it"
+reflexes are exactly wrong:
+- **NEVER `git checkout`, `git restore`, or `git stash` a file in the diff.** They
+  restore from the index and will silently wipe the increment you were sent to
+  review. (This happened on M8 inc3 and cost an author-verification round.)
+- Back up with `command cp` (bypassing any interactive `cp -i` alias, which prompts
+  and silently fails), restore with `command cp`, and **`grep`-verify** both that the
+  mutant landed *before* running and that the revert landed *after*.
+- Treat identical failure output across supposedly different mutants as a red flag,
+  not corroboration — it usually means a mutant never landed.
+- Report **which assertion** caught each mutant; a per-mutant answer is hard to fake
+  and surfaces an invalid run immediately.
+- If you damage the working tree anyway, **say so plainly in your review** and ask
+  the author to verify — a quiet restore-from-memory is far worse than an admitted
+  one. Disclosing it is the right call, not a failure.
+
 ## The three that catch the most here (full list lives in `lt-review`)
 - **Numeric correctness is the product.** Independently recompute at least one worked
   value yourself (a quick script is fine) against an authoritative reference — do not

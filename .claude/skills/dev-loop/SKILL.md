@@ -220,6 +220,28 @@ identical failure output across supposedly different mutants as a red flag rathe
 than corroboration. Ask B to report *which assertion* caught each mutant — a
 per-mutant answer is hard to fake and surfaces an invalid run immediately.
 
+**And forbid the destructive revert path explicitly** — mandating `command cp`
+positively is not enough, because git offers a tempting alternative that is
+catastrophic here. **Never `git checkout` / `git restore` / `git stash` a file in
+the increment**: they restore from the *index*, and the increment under review is
+uncommitted, so they silently wipe the work rather than undoing the mutant. On M8
+inc3 a reviewer did exactly this and destroyed the increment's `grid.ts`. Two
+hardenings, both cheap:
+- The revert must come from the mutation backup, never from git, while work is
+  uncommitted.
+- **Whoever applies the mutant takes their own `command cp` backup first** — do
+  not rely on having read the file into context. A backup taken before the first
+  mutant makes verification a one-line hash check (`md5sum`), which proves comments,
+  TSDoc wording, and defensive branches are intact all at once. Greps and a green
+  suite cannot reach that class of difference.
+
+The same protocol must appear in `templates/review.md`, not just here — reviewers
+mutation-test routinely and are spawned fresh each cycle with no memory of these
+lessons. A rule only helps where it is actually loaded. And if the tree *is*
+damaged: say so plainly and ask the author to verify. The M8 reviewer disclosed it,
+which turned a potential silent corruption into a five-second hash check — that is
+the behaviour to reward, not to discourage.
+
 **Apply the derivation check before you specify a property test in a brief.** Ask
 which implementation line the property can be algebraically derived from; it cannot
 constrain any other line. In M8 I specified a conservation property as "the strongest

@@ -18,7 +18,16 @@
 set -uo pipefail
 
 REPO="$(git rev-parse --show-toplevel)"
-BASELINE="$(cat "$REPO/.dev-loop/state.json" 2>/dev/null | jq -r '.baseline // "HEAD"')"
+# Re-read on EVERY tick, never cache. A caches the baseline forward as each
+# increment is approved (see SKILL.md §5), so a value read once at startup goes
+# stale the moment the first increment lands — the tripwires then measure the
+# whole milestone instead of the current increment and fire cumulative false
+# positives. That is exactly the bug the per-increment baseline was meant to
+# kill; fixing the producer without the consumer left it alive with an
+# identical symptom. (Observed M8 inc3: supervisor held M8's starting commit
+# and reported 1102 changed lines for a 385-line increment.)
+read_baseline() { jq -r '.baseline // "HEAD"' "$REPO/.dev-loop/state.json" 2>/dev/null || echo HEAD; }
+BASELINE="$(read_baseline)"
 POLL_SECS="${POLL_SECS:-30}"
 STALL_SECS="${STALL_SECS:-300}"
 DIFF_BUDGET="${DIFF_BUDGET:-800}"
@@ -71,6 +80,18 @@ in_scope() {
 }
 
 while true; do
+  # A new increment resets the frame of reference: re-point at the advanced
+  # baseline and clear the latches, or a RUNAWAY_DIFF/SCOPE_VIOLATION emitted
+  # for the PREVIOUS increment stays suppressed (or stale) through this one.
+  new_baseline="$(read_baseline)"
+  if [ "$new_baseline" != "$BASELINE" ]; then
+    BASELINE="$new_baseline"
+    runaway_emitted=0
+    unset scope_emitted; declare -A scope_emitted
+    last_sig="$(sig | sha1sum | cut -d' ' -f1)"
+    last_change=$(date +%s)
+  fi
+
   cur_sig="$(sig | sha1sum | cut -d' ' -f1)"
   nows=$(date +%s)
 

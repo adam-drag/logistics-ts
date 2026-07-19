@@ -28,6 +28,17 @@ REPO="$(git rev-parse --show-toplevel)"
 # and reported 1102 changed lines for a 385-line increment.)
 read_baseline() { jq -r '.baseline // "HEAD"' "$REPO/.dev-loop/state.json" 2>/dev/null || echo HEAD; }
 BASELINE="$(read_baseline)"
+# Scope is per-INCREMENT and changes as the loop advances (inc1 may touch one
+# package, inc3 the umbrella and .changeset/ too), so it has to be re-read for
+# the same reason the baseline does. Prefer state.json (`state.sh set scopeGlobs
+# "..."`, updated per increment); fall back to the SCOPE_GLOBS env var for a
+# one-shot run. Caching this at launch flags legitimately in-scope files for
+# every increment after the first. (Observed M8 inc3.)
+read_scope() {
+  local s; s="$(jq -r '.scopeGlobs // empty' "$REPO/.dev-loop/state.json" 2>/dev/null)"
+  [ -n "$s" ] && { printf '%s' "$s"; return; }
+  printf '%s' "${SCOPE_GLOBS:-}"
+}
 POLL_SECS="${POLL_SECS:-30}"
 STALL_SECS="${STALL_SECS:-300}"
 DIFF_BUDGET="${DIFF_BUDGET:-800}"
@@ -90,6 +101,14 @@ while true; do
     unset scope_emitted; declare -A scope_emitted
     last_sig="$(sig | sha1sum | cut -d' ' -f1)"
     last_change=$(date +%s)
+  fi
+  # Scope can widen mid-increment too (a brief may add the umbrella or
+  # .changeset/), so refresh it every tick and re-arm the per-file latches when
+  # it changes — a file flagged under the old scope may be legitimate now.
+  new_scope="$(read_scope)"
+  if [ "$new_scope" != "${SCOPE_GLOBS:-}" ]; then
+    SCOPE_GLOBS="$new_scope"
+    unset scope_emitted; declare -A scope_emitted
   fi
 
   cur_sig="$(sig | sha1sum | cut -d' ' -f1)"

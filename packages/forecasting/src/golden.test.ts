@@ -64,12 +64,13 @@ describe('golden: statsforecast CrostonClassic / CrostonSBA', () => {
 })
 
 describe('golden: statsforecast TSB', () => {
-  it.each(
-    fixtures.tsb,
-  )('tsb(α_z=$alphaDemand, α_p=$alphaProbability) matches statsforecast on $series', (f) => {
-    const r = tsb(f.series, { alphaDemand: f.alphaDemand, alphaProbability: f.alphaProbability })
-    expect(r.value.forecast[0]).toBeCloseTo(f.expected, EXACT)
-  })
+  it.each(fixtures.tsb)(
+    'tsb(α_z=$alphaDemand, α_p=$alphaProbability) matches statsforecast on $series',
+    (f) => {
+      const r = tsb(f.series, { alphaDemand: f.alphaDemand, alphaProbability: f.alphaProbability })
+      expect(r.value.forecast[0]).toBeCloseTo(f.expected, EXACT)
+    },
+  )
 })
 
 describe('golden: statsforecast SimpleExponentialSmoothing', () => {

@@ -32,8 +32,8 @@
     "examples": "pnpm example:quickstart && pnpm example:forecast-replenish && pnpm example:inventory-analysis"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.3",
-    "@changesets/cli": "^2.27.9",
+    "@biomejs/biome": "^2.5.4",
+    "@changesets/cli": "^2.31.1",
     "@types/node": "^26.1.1",
     "dependency-cruiser": "^17.4.3",
     "fast-check": "^4.9.0",

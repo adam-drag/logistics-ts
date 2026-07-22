@@ -1,6 +1,7 @@
 /**
- * @logistics-ts/planning — MRP planning: lot-sizing rules, time-phased netting,
- * and BOM explosion for logistics-ts.
+ * @logistics-ts/planning — MRP planning for logistics-ts: lot-sizing rules and
+ * the single-item time-phased netting grid. BOM explosion and multi-level MRP
+ * are **not** shipped yet — do not read this doc as promising them.
  *
  * This is the layer-3.5 planning package: it may import inward from `inventory`,
  * `forecasting`, `classification`, and `core`, and turns per-period demand into
@@ -16,6 +17,11 @@
  *
  * {@link lotSize} dispatches to any of them by name when the rule is chosen at
  * runtime rather than at author time.
+ *
+ * {@link mrpGrid} sits above them: it nets gross requirements against on-hand
+ * stock, scheduled receipts, and a safety-stock floor to produce the canonical
+ * MRP time-phased record, delegating the sizing of the resulting
+ * net-requirements series to whichever rule the caller selects.
  */
 export { type Explained, explain } from '@logistics-ts/core'
 export { accumulateLotCost, type LotSizingCost, simulateLotCost } from './lot-sizing/cost'

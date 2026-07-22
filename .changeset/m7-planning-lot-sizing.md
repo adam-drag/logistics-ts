@@ -53,7 +53,14 @@ lead time before calling. A release landing before period 0 is **past due**:
 the receipt is kept (the demand is real) and reported in `warnings` and in
 `plannedOrders` with `pastDue: true`, never silently dropped or clamped into
 period 0. `reasoning[]` narrates each planned order back to the net requirement
-that caused it, the rule that sized it, and the period it is released in.
+that caused it, the rule that sized it, and the period it is released in — the
+cause is the period whose requirement the order actually covers, which is not
+always the period it is received in (POQ orders at the start of every interval
+block, ahead of the need inside it).
+
+Input is validated fail-fast: a non-array horizon, or a hole/`undefined` entry
+inside `grossRequirements` or `scheduledReceipts`, throws naming the field
+rather than being read as zero demand.
 
 Scope is deliberate: this is **single-item** netting. BOM explosion and
 multi-level MRP are not included.

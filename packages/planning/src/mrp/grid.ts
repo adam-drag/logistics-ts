@@ -15,6 +15,37 @@ import type { MrpInput, MrpPlan, MrpRow, PlannedOrderSchedule } from './types'
 const MAX_NARRATED_ORDERS = 12
 
 /**
+ * Pairs each planned order with the period whose net requirement actually
+ * caused it — which is **not** in general the receipt period. Period-order
+ * quantity places an order at the start of every interval block, so a block
+ * whose only need falls three periods in is still ordered at the block start;
+ * naming the receipt period as "where the net requirement first arises" would
+ * point the reader at a period whose net requirement is zero.
+ *
+ * Orders arrive in ascending receipt period, so a single forward cursor over
+ * the pass-1 net series attributes each order to the first still-unattributed
+ * need at or after its receipt period. `undefined` means the order covers no
+ * remaining net requirement at all: no rule in the current family reaches it —
+ * every one of them is triggered by a genuine need at or after the period it
+ * orders in — so it exists only to keep the function total for a future rule
+ * that could over-order past the end of the horizon.
+ */
+function attributeCauses(
+  netSeries: readonly number[],
+  orders: readonly PlannedOrderSchedule[],
+): (number | undefined)[] {
+  const causes: (number | undefined)[] = []
+  let cursor = 0
+  for (const order of orders) {
+    cursor = Math.max(cursor, order.receiptPeriod)
+    while (cursor < netSeries.length && (netSeries[cursor] ?? 0) <= 0) cursor++
+    causes.push(cursor < netSeries.length ? cursor : undefined)
+    cursor++
+  }
+  return causes
+}
+
+/**
  * Default lot rule: lot-for-lot. Its plan is independent of the cost
  * parameters — it never carries inventory and orders once per nonzero-net
  * period — so zero costs are the honest default rather than an invented price.
@@ -50,9 +81,11 @@ const DEFAULT_LOT_RULE: LotSizeOptions = {
  *    carry the surplus forward. Note the balance follows *receipts*: a lead
  *    time shifts when an order is placed, not when it arrives.
  *
- * Because every rule in the family is feasible and conserving — it never orders
- * late and orders `Σ net` in total — the rebuilt balance is always at least the
- * pass-1 balance, so `PAB_t ≥ safetyStock` holds for every rule. Under
+ * Because every rule in the family is feasible — none ever orders later than the
+ * period of need, so its cumulative receipts dominate cumulative net
+ * requirements at every period (`foq` may order strictly *more* than `Σ net`,
+ * which only strengthens the inequality) — the rebuilt balance is always at
+ * least the pass-1 balance, so `PAB_t ≥ safetyStock` holds for every rule. Under
  * lot-for-lot the receipt equals the net requirement exactly, so the balance
  * lands *on* the floor whenever an order is planned; under every other rule it
  * may sit above the floor.
@@ -100,6 +133,19 @@ export function mrpGrid(input: MrpInput): MrpPlan {
       `leadTimePeriods must be a non-negative integer number of periods/buckets (got ${leadTimePeriods})`,
     )
   }
+  // A non-array reaching this from an untyped JS caller would make `.length`
+  // `undefined`, silently yielding an empty grid instead of an error — an
+  // empty result that hides a caller bug is worse than a throw.
+  if (!Array.isArray(grossRequirements)) {
+    throw new TypeError(
+      `grossRequirements must be an array of per-period demands (got ${typeof grossRequirements})`,
+    )
+  }
+  if (scheduledReceipts !== undefined && !Array.isArray(scheduledReceipts)) {
+    throw new TypeError(
+      `scheduledReceipts must be an array of per-period receipts when provided (got ${typeof scheduledReceipts})`,
+    )
+  }
   if (scheduledReceipts !== undefined && scheduledReceipts.length > grossRequirements.length) {
     throw new Error(
       `scheduledReceipts must not be longer than grossRequirements (got ${scheduledReceipts.length} > ${grossRequirements.length})`,
@@ -110,9 +156,13 @@ export function mrpGrid(input: MrpInput): MrpPlan {
   const gross: number[] = []
   const receipts: number[] = []
   for (let period = 0; period < horizon; period++) {
-    const g = grossRequirements[period] ?? 0
+    // Read the raw entry: a hole or an `undefined` INSIDE the horizon is a
+    // caller bug, not a zero, so it is validated rather than coalesced. Only
+    // `scheduledReceipts` entries past the end of a deliberately shorter array
+    // default to zero, which is the documented contract.
+    const g = grossRequirements[period]
     requireNonNegative(`grossRequirements[${period}]`, g)
-    const sr = scheduledReceipts?.[period] ?? 0
+    const sr = period < (scheduledReceipts?.length ?? 0) ? scheduledReceipts?.[period] : 0
     requireNonNegative(`scheduledReceipts[${period}]`, sr)
     gross.push(g)
     receipts.push(sr)
@@ -194,16 +244,23 @@ export function mrpGrid(input: MrpInput): MrpPlan {
   // Narrate each planned order back to the net requirement that caused it —
   // the explainability payoff. Long horizons summarise instead of emitting one
   // bullet per order, so the explanation stays readable.
+  const causes = attributeCauses(netSeries, plannedOrders)
   const orderNarration =
     plannedOrders.length === 0
       ? ['no planned orders — on-hand, scheduled receipts, and the floor already cover the horizon']
       : plannedOrders.length <= MAX_NARRATED_ORDERS
-        ? plannedOrders.map(
-            (o) =>
-              `planned order of ${round(o.quantity)} sized by '${lotRule.rule}' to cover the net requirement first arising in period ${o.receiptPeriod}: receive in period ${o.receiptPeriod}, release in period ${o.releasePeriod}${o.pastDue ? ' — PAST DUE, before the start of the horizon' : ''}`,
-          )
+        ? plannedOrders.map((o, index) => {
+            const cause = causes[index]
+            const because =
+              cause === undefined
+                ? 'covering no remaining net requirement — surplus left by the lot size'
+                : cause === o.receiptPeriod
+                  ? `to cover the net requirement first arising in period ${cause}`
+                  : `to cover the net requirement first arising in period ${cause}, ordered ahead of it by the rule`
+            return `planned order of ${round(o.quantity)} sized by '${lotRule.rule}' ${because}: receive in period ${o.receiptPeriod}, release in period ${o.releasePeriod}${o.pastDue ? ' — PAST DUE, before the start of the horizon' : ''}`
+          })
         : [
-            `${plannedOrders.length} planned orders sized by '${lotRule.rule}' totalling ${round(totalPlanned)} units, each released ${leadTimePeriods} period(s) before the period whose net requirement it covers (individual orders not narrated — over ${MAX_NARRATED_ORDERS} of them; read plannedOrders for the full schedule)`,
+            `${plannedOrders.length} planned orders sized by '${lotRule.rule}' totalling ${round(totalPlanned)} units, each released ${leadTimePeriods} period(s) before the period it is received in (individual orders not narrated — over ${MAX_NARRATED_ORDERS} of them; read plannedOrders for the full schedule)`,
           ]
 
   const warnings =

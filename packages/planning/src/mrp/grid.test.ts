@@ -204,6 +204,51 @@ describe('mrpGrid', () => {
     ).toThrow(/scheduledReceipts\[0\]/)
   })
 
+  it('rejects a hole inside the horizon rather than reading it as zero demand', () => {
+    // An untyped JS caller can hand over a sparse array or an explicit
+    // `undefined`. Coalescing that to 0 silently plans against demand that was
+    // never stated; a missing period inside the horizon is a caller bug.
+    expect(() =>
+      mrpGrid({ grossRequirements: [10, undefined as unknown as number, 5], onHand: 0 }),
+    ).toThrow(/grossRequirements\[1\] must be finite and non-negative/)
+    // A genuinely sparse array (a hole, not an explicit undefined) behaves the
+    // same way — reading index 1 yields `undefined`.
+    const sparse: number[] = [10, 5]
+    delete sparse[1]
+    expect(() => mrpGrid({ grossRequirements: sparse, onHand: 0 })).toThrow(
+      /grossRequirements\[1\]/,
+    )
+    expect(() =>
+      mrpGrid({
+        grossRequirements: [10, 5],
+        scheduledReceipts: [undefined as unknown as number, 1],
+        onHand: 0,
+      }),
+    ).toThrow(/scheduledReceipts\[0\] must be finite and non-negative/)
+    // A DELIBERATELY shorter scheduledReceipts array still defaults to zero —
+    // that is the documented contract and must keep working.
+    expect(
+      mrpGrid({ grossRequirements: [10, 5], scheduledReceipts: [10], onHand: 0 }).value.rows.map(
+        (r) => r.scheduledReceipts,
+      ),
+    ).toEqual([10, 0])
+  })
+
+  it('rejects a non-array horizon instead of returning an empty grid', () => {
+    // `.length` on a non-array is `undefined`, so an unguarded implementation
+    // plans nothing and reports success — an empty result hiding a caller bug.
+    expect(() => mrpGrid({ grossRequirements: 5 as unknown as number[], onHand: 0 })).toThrow(
+      /grossRequirements must be an array/,
+    )
+    expect(() =>
+      mrpGrid({
+        grossRequirements: [10],
+        scheduledReceipts: 10 as unknown as number[],
+        onHand: 0,
+      }),
+    ).toThrow(/scheduledReceipts must be an array/)
+  })
+
   // NOTE: an earlier version of this test asserted only the conservation
   // identity `onHand + ΣSR + ΣPORcpt === ΣGR + finalPAB`. That is vacuous: it
   // telescopes straight out of the PAB recursion, so it holds for ANY receipt
@@ -571,6 +616,34 @@ describe('mrpGrid', () => {
       expect(plan.inputs.leadTimePeriods).toBe(1)
     })
 
+    it('names the period the need actually arises in, not the period ordered in', () => {
+      // POQ orders at the START of every interval block, so with net = [0, 0,
+      // 50, 0] it places the whole 50 in period 0 — a period whose net
+      // requirement is ZERO. Naming the receipt period as "where the net
+      // requirement first arises" pointed the reader at period 0, which needs
+      // nothing; the need first arises in period 2.
+      const plan = mrpGrid({
+        grossRequirements: [0, 0, 50, 0],
+        onHand: 0,
+        lotRule: { rule: 'poq', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
+      })
+      expect(plan.value.plannedOrders).toEqual([
+        { releasePeriod: 0, receiptPeriod: 0, quantity: 50, pastDue: false },
+      ])
+      const narration = plan.reasoning.filter((r) => r.startsWith('planned order')).join('\n')
+      expect(narration).toContain('net requirement first arising in period 2')
+      expect(narration).toContain('receive in period 0')
+      expect(narration).not.toContain('first arising in period 0')
+
+      // ...and the receipt period is still named when the order genuinely does
+      // sit on the period of need, so the fix did not just relabel everything.
+      const lfl = mrpGrid({ grossRequirements: [0, 0, 50, 0], onHand: 0 })
+      expect(
+        lfl.reasoning.some((r) => r.includes('net requirement first arising in period 2')),
+      ).toBe(true)
+      expect(lfl.reasoning.some((r) => r.includes('ordered ahead of it'))).toBe(false)
+    })
+
     it('summarises instead of narrating every order on a long horizon', () => {
       // 30 nonzero periods under lot-for-lot ⇒ 30 orders, over the narration cap.
       const plan = mrpGrid({
@@ -639,6 +712,16 @@ describe('mrpGrid', () => {
             expect(releasedInHorizon + pastDueQty).toBe(expectedReceipts.reduce((s, q) => s + q, 0))
             // A past-due order must be warned about, never silently absorbed.
             expect(plan.warnings !== undefined).toBe(pastDueQty > 0)
+            // Every period the narration blames for an order must genuinely
+            // HAVE a net requirement in the independently recomputed series.
+            // This constrains the attribution, which is derived from the
+            // receipt column and cannot be checked against it.
+            for (const line of plan.reasoning) {
+              const match = /first arising in period (\d+)/.exec(line)
+              if (match?.[1] !== undefined) {
+                expect(netSeries[Number(match[1])]).toBeGreaterThan(0)
+              }
+            }
           },
         ),
       )

@@ -29,7 +29,45 @@ Each takes a per-period demand vector plus cost parameters and returns an
 Silver & Meal 1973; Nahmias 2009; Silver, Pyke & Thomas 2017), and reasoning
 behind every planned order.
 
-Also exposes the shared `LotPlan` result type and two low-level cost primitives
+## Time-phased netting grid
+
+`mrpGrid(input)` builds the canonical MRP record for a single item (Orlicky;
+APICS/ASCM CPIM), returning an `Explained<{ rows, plannedOrders }>` where every
+row carries the full netting arithmetic — gross requirements, scheduled
+receipts, projected available balance, net requirements, planned order receipt,
+and planned order release.
+
+Netting is `net_t = max(0, grossRequirements_t + safetyStock −
+projectedAvailableBalance_{t−1} − scheduledReceipts_t)`, with an optional
+`safetyStock` floor the balance never dips below.
+
+Lot sizing is **delegated** to the rules above via `lotRule` (default
+lot-for-lot): the grid hands the whole net-requirements vector to `lotSize`
+rather than sizing period by period, because Silver-Meal and Wagner-Whitin are
+horizon algorithms. A rule that orders early shows covered periods netting to
+zero and carries the surplus forward.
+
+`leadTimePeriods` offsets each receipt *left* into a planned order release. Its
+unit is **periods/buckets, never days** — convert a day-denominated supplier
+lead time before calling. A release landing before period 0 is **past due**:
+the receipt is kept (the demand is real) and reported in `warnings` and in
+`plannedOrders` with `pastDue: true`, never silently dropped or clamped into
+period 0. `reasoning[]` narrates each planned order back to the net requirement
+that caused it, the rule that sized it, and the period it is released in — the
+cause is the period whose requirement the order actually covers, which is not
+always the period it is received in (POQ orders at the start of every interval
+block, ahead of the need inside it).
+
+Input is validated fail-fast: a non-array horizon, or a hole/`undefined` entry
+inside `grossRequirements` or `scheduledReceipts`, throws naming the field
+rather than being read as zero demand.
+
+Scope is deliberate: this is **single-item** netting. BOM explosion and
+multi-level MRP are not included.
+
+Also exposes the `MrpInput`, `MrpRow`, `MrpGridPlan`, `MrpPlan`, and
+`PlannedOrderSchedule` types alongside the shared `LotPlan` result type and two
+low-level cost primitives
 sharing one end-of-period holding convention: `accumulateLotCost` (coverage form,
 for orders equal to their covered demand) and `simulateLotCost` (on-hand
 simulation, correct when a fixed lot leaves remainder inventory).

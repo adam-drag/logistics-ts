@@ -31,7 +31,10 @@ Paths below are relative to this skill dir: `.claude/skills/dev-loop/`.
 - **B (implementer)** — a *named background subagent*. Builds one small increment,
   leaves it in the working tree, never commits/PRs. Resumed across cycles via
   SendMessage so it keeps context.
-- **Reviewer** — a *fresh throwaway subagent per cycle*, read-only, diff-only.
+- **Reviewer** — a *fresh throwaway subagent per cycle*, diff-only and **producing
+  no net change**: it never implements, fixes, or commits. The one sanctioned
+  exception is a *transient* source mutation to prove a test bites, which it must
+  revert and hash-verify under the mutation protocol below.
   Independence beats accumulated context (verifier pattern) — the agent that wrote
   the code cannot review it with a detached eye. This is what catches defects a
   green `pnpm check` sails past, e.g. an `@example` that contradicts its own tests.
@@ -68,6 +71,12 @@ IDLE ──dispatch──▶ IMPLEMENTING ──B:ready──▶ REVIEWING ─�
 
 ### 1. Dispatch an increment (IDLE → IMPLEMENTING)
 - `scripts/state.sh reset-cycle` and `state.sh set increment "<slug>"`, `set phase IMPLEMENTING`.
+- **`state.sh set scopeGlobs "<this increment's globs>"` — required on every
+  dispatch**, using the same globs you put in `{{SCOPE}}`. The supervisor re-reads
+  this key each tick; if you leave the previous increment's value in place it will
+  flag this increment's legitimately in-scope files as `SCOPE_VIOLATION`, one by one
+  (observed in M8). Space-separated patterns, e.g.
+  `"packages/planning/** packages/logistics-ts/** .changeset/**"`.
 - Fill `templates/implement.md` slots ({{INCREMENT}}, {{ACCEPTANCE}} — include the
   cited reference value the tests must hit, {{SCOPE}}, {{BASELINE}} from
   `state.sh get baseline`, {{DIFF_BUDGET}}).
@@ -144,11 +153,19 @@ Do **not** read B's transcript to check on it — the transcript symlink overflo
 context. Instead run the working-tree watchdog as a persistent Monitor:
 ```
 Monitor(
-  command: "SCOPE_GLOBS='<increment scope>' .claude/skills/dev-loop/scripts/supervise.sh",
+  command: ".claude/skills/dev-loop/scripts/supervise.sh",
   description: "dev-loop: Agent B working tree",
   persistent: true
 )
 ```
+Launch it **once** and leave it running for the whole task. Do not pass the scope on
+the command line: it reads both `baseline` and `scopeGlobs` from
+`.dev-loop/state.json` on every tick, so the frame of reference follows the loop as
+you advance the baseline (§5) and set the next increment's scope (§1). Anything
+captured in the Monitor command is frozen at launch and goes stale after the first
+increment — that was the M8 bug. (A bare `SCOPE_GLOBS=…` env var still works as a
+fallback for running the script by hand outside the loop.)
+
 It emits one line per actionable event; **silence = healthy**. When an event lands:
 - `STUCK` → B may be spinning/blocked. Peek once with `git diff --stat` (cheap).
   If genuinely stuck, `TaskStop` B and either re-dispatch with a corrected/split
@@ -227,20 +244,26 @@ the increment**: they restore from the *index*, and the increment under review i
 uncommitted, so they silently wipe the work rather than undoing the mutant. On M8
 inc3 a reviewer did exactly this and destroyed the increment's `grid.ts`. Two
 hardenings, both cheap:
-- The revert must come from the mutation backup, never from git, while work is
-  uncommitted.
+- The revert must come from the mutation backup, never from git.
 - **Whoever applies the mutant takes their own `command cp` backup first** — do
   not rely on having read the file into context. A backup taken before the first
   mutant makes verification a one-line hash check (`md5sum`), which proves comments,
   TSDoc wording, and defensive branches are intact all at once. Greps and a green
   suite cannot reach that class of difference.
+- Keep the backup **outside the repo** (`/tmp`) or under gitignored `.dev-loop/`. A
+  stray `foo.ts.bak` is an untracked file, and the supervisor counts untracked files
+  — it inflates `RUNAWAY_DIFF` and trips `SCOPE_VIOLATION`, and it shows up in the
+  reviewer's own `git add -N .` diff.
 
-The same protocol must appear in `templates/review.md`, not just here — reviewers
-mutation-test routinely and are spawned fresh each cycle with no memory of these
-lessons. A rule only helps where it is actually loaded. And if the tree *is*
-damaged: say so plainly and ask the author to verify. The M8 reviewer disclosed it,
-which turned a potential silent corruption into a five-second hash check — that is
-the behaviour to reward, not to discourage.
+The same protocol must appear in **both** `templates/implement.md` and
+`templates/review.md`, not just here — B mutation-tests its own work and reviewers
+mutation-test routinely, both are spawned fresh with no memory of these lessons, and
+in fact both observed failures (M7's silent revert, M8's mutant that never landed)
+happened to **B**, not the reviewer. A rule only helps where it is actually loaded,
+and "actually loaded" means every prompt that will perform the action. And if the
+tree *is* damaged: say so plainly and ask the author to verify. The M8 reviewer
+disclosed it, which turned a potential silent corruption into a five-second hash
+check — that is the behaviour to reward, not to discourage.
 
 **Apply the derivation check before you specify a property test in a brief.** Ask
 which implementation line the property can be algebraically derived from; it cannot

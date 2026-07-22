@@ -11,13 +11,24 @@
 #   STUCK           working tree unchanged for > STALL_SECS (default 300s)
 #   RESUMED         activity returned after a STUCK episode
 #   RUNAWAY_DIFF    changed-line count crossed DIFF_BUDGET (default 800)
-#   SCOPE_VIOLATION a changed file is outside SCOPE_GLOBS (only if that env is set)
+#   SCOPE_VIOLATION a changed file is outside the declared scope (only if one is set)
+#
+# Baseline and scope are read from `.dev-loop/state.json` (written by state.sh) on
+# every tick — see read_baseline/read_scope. Scope also accepts a SCOPE_GLOBS env
+# var as a fallback for a one-shot run outside the loop.
 #
 # Env knobs (all optional):
 #   POLL_SECS=30  STALL_SECS=300  DIFF_BUDGET=800  SCOPE_GLOBS="packages/foo/** src/bar/**"
 set -uo pipefail
 
 REPO="$(git rev-parse --show-toplevel)"
+STATE="$REPO/.dev-loop/state.json"
+# Captured ONCE, before $SCOPE_GLOBS becomes the live (state-driven) value below.
+# read_scope's fallback has to keep meaning "what the operator launched with"; if
+# it read $SCOPE_GLOBS instead, the fallback would return the last state.json
+# value and clearing `scopeGlobs` in state would never restore the launch scope.
+SCOPE_GLOBS_ENV="${SCOPE_GLOBS:-}"
+
 # Re-read on EVERY tick, never cache. A caches the baseline forward as each
 # increment is approved (see SKILL.md §5), so a value read once at startup goes
 # stale the moment the first increment lands — the tripwires then measure the
@@ -26,23 +37,28 @@ REPO="$(git rev-parse --show-toplevel)"
 # kill; fixing the producer without the consumer left it alive with an
 # identical symptom. (Observed M8 inc3: supervisor held M8's starting commit
 # and reported 1102 changed lines for a 385-line increment.)
-read_baseline() { jq -r '.baseline // "HEAD"' "$REPO/.dev-loop/state.json" 2>/dev/null || echo HEAD; }
-BASELINE="$(read_baseline)"
+#
+# Returns EMPTY when state.json is missing or unparseable — the caller treats
+# that as "no news" rather than re-framing every tripwire. state.sh rewrites the
+# file, so a tick can land mid-write; a `// "HEAD"` default here would silently
+# swap the frame to HEAD for that tick and back again on the next one.
+read_baseline() { jq -r '.baseline // empty' "$STATE" 2>/dev/null; }
+BASELINE="$(read_baseline)"; BASELINE="${BASELINE:-HEAD}"
 # Scope is per-INCREMENT and changes as the loop advances (inc1 may touch one
 # package, inc3 the umbrella and .changeset/ too), so it has to be re-read for
 # the same reason the baseline does. Prefer state.json (`state.sh set scopeGlobs
-# "..."`, updated per increment); fall back to the SCOPE_GLOBS env var for a
-# one-shot run. Caching this at launch flags legitimately in-scope files for
-# every increment after the first. (Observed M8 inc3.)
+# "..."`, which SKILL.md §1 requires on every dispatch); fall back to the launch
+# env var for a one-shot run. Caching this at launch flags legitimately in-scope
+# files for every increment after the first. (Observed M8 inc3.)
 read_scope() {
-  local s; s="$(jq -r '.scopeGlobs // empty' "$REPO/.dev-loop/state.json" 2>/dev/null)"
+  local s; s="$(jq -r '.scopeGlobs // empty' "$STATE" 2>/dev/null)"
   [ -n "$s" ] && { printf '%s' "$s"; return; }
-  printf '%s' "${SCOPE_GLOBS:-}"
+  printf '%s' "$SCOPE_GLOBS_ENV"
 }
 POLL_SECS="${POLL_SECS:-30}"
 STALL_SECS="${STALL_SECS:-300}"
 DIFF_BUDGET="${DIFF_BUDGET:-800}"
-SCOPE_GLOBS="${SCOPE_GLOBS:-}"
+SCOPE_GLOBS="$(read_scope)"
 
 sig() { git -C "$REPO" status --porcelain=v1; git -C "$REPO" diff --stat "$BASELINE" 2>/dev/null; }
 # Line/file counts must include brand-new UNTRACKED files — plain `git diff`
@@ -95,10 +111,20 @@ while true; do
   # baseline and clear the latches, or a RUNAWAY_DIFF/SCOPE_VIOLATION emitted
   # for the PREVIOUS increment stays suppressed (or stale) through this one.
   new_baseline="$(read_baseline)"
-  if [ "$new_baseline" != "$BASELINE" ]; then
+  if [ -n "$new_baseline" ] && [ "$new_baseline" != "$BASELINE" ]; then
     BASELINE="$new_baseline"
     runaway_emitted=0
     unset scope_emitted; declare -A scope_emitted
+    # EVERY latch has to be re-armed, including the stall one. Resetting
+    # last_sig/last_change below makes the RESUMED branch unreachable for this
+    # tick, so leaving stuck_emitted set strands it at 1 for the rest of the run
+    # and the STUCK tripwire never fires again. (Verified: with the latch left
+    # set, a tree static for 3x STALL_SECS after a baseline advance emitted
+    # nothing at all — neither STUCK nor RESUMED.)
+    if [ "$stuck_emitted" -eq 1 ]; then
+      echo "RESUMED: baseline advanced to ${BASELINE:0:8} — new increment, stall cleared"
+      stuck_emitted=0
+    fi
     last_sig="$(sig | sha1sum | cut -d' ' -f1)"
     last_change=$(date +%s)
   fi
@@ -106,7 +132,7 @@ while true; do
   # .changeset/), so refresh it every tick and re-arm the per-file latches when
   # it changes — a file flagged under the old scope may be legitimate now.
   new_scope="$(read_scope)"
-  if [ "$new_scope" != "${SCOPE_GLOBS:-}" ]; then
+  if [ "$new_scope" != "$SCOPE_GLOBS" ]; then
     SCOPE_GLOBS="$new_scope"
     unset scope_emitted; declare -A scope_emitted
   fi

@@ -19,6 +19,11 @@ rather than silently skipping it. If a finding reveals the increment is
 fundamentally the wrong shape or too big, report `STATUS: needs_human` instead of
 forcing a fix.
 
+If a finding says a test guards nothing, re-prove it bites under the same mutation
+protocol from your original brief — `command cp` backup outside the repo, never
+`git checkout`/`restore`/`stash` on a file you changed, grep before and after, and
+`md5sum` against the backup — and name the catching assertion in NOTES.
+
 Re-run the **full** `pnpm check` before reporting back.
 
 When done, END your reply with EXACTLY the same block:

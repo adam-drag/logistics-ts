@@ -58,6 +58,11 @@ cause is the period whose requirement the order actually covers, which is not
 always the period it is received in (POQ orders at the start of every interval
 block, ahead of the need inside it).
 
+Demand does not have to be integral. Both netting identities are held to
+their exact values against binary floating-point residue, so fractional
+quantities (kg, litres, hours) never put the projected balance below the
+safety-stock floor or show a net requirement no planned order covers.
+
 Input is validated fail-fast: a non-array horizon, or a hole/`undefined` entry
 inside `grossRequirements` or `scheduledReceipts`, throws naming the field
 rather than being read as zero demand.

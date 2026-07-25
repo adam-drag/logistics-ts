@@ -302,6 +302,75 @@ describe('mrpGrid', () => {
     )
   })
 
+  describe('fractional demand — floating-point residue', () => {
+    // Demand is not integral in general (kg, litres, hours), and nothing in the
+    // contract says it must be. Every OTHER property here samples `fc.nat`, so
+    // this whole class was structurally invisible to the suite: the two cases
+    // below are the exact counterexamples that found it, and both contradicted
+    // MrpRow's "never negative, and never below the safetyStock floor".
+
+    it('holds the floor exactly on two-decimal demand (was 2.4999999999999964)', () => {
+      const rows = mrpGrid({
+        grossRequirements: [10.1, 20.2, 30.3],
+        onHand: 5.05,
+        safetyStock: 2.5,
+      }).value.rows
+      // Every period orders, so lot-for-lot must land ON the floor each time —
+      // exactly, not 4e-16 under it. Before the residue snap the balance drifted
+      // period by period and dragged the net requirement with it (30.3 was
+      // reported as 30.299999999999997).
+      expect(rows.map((r) => r.projectedAvailableBalance)).toEqual([2.5, 2.5, 2.5])
+      expect(rows.map((r) => r.netRequirements)).toEqual([7.55, 20.2, 30.3])
+      expect(rows.map((r) => r.plannedOrderReceipt)).toEqual([7.55, 20.2, 30.3])
+    })
+
+    it('reports no phantom net requirement in a covered period (was 1.78e-15)', () => {
+      // Silver-Meal covers both periods with one lot of 35.47 at t=0. Rebuilding
+      // t=1 leaves 12.65 − 12.649999999999999 of residue, which surfaced as a net
+      // requirement no order covered and a NEGATIVE projected balance.
+      const rows = mrpGrid({
+        grossRequirements: [22.82, 12.65],
+        onHand: 0,
+        lotRule: { rule: 'silver-meal', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
+      }).value.rows
+      expect(rows[1]?.netRequirements).toBe(0)
+      expect(rows[1]?.projectedAvailableBalance).toBe(0)
+      expect(rows.every((r) => r.projectedAvailableBalance >= 0)).toBe(true)
+    })
+
+    it('holds the floor and receipt dominance for EVERY rule (property)', () => {
+      // Two-decimal quantities, NOT fc.double: its range reaches subnormals
+      // (~1e-308) where a 1-ULP disagreement is a property of IEEE-754, not a
+      // defect in this library.
+      const qty = (max: number) => fc.integer({ min: 0, max: max * 100 }).map((n) => n / 100)
+      fc.assert(
+        fc.property(
+          fc.array(qty(200), { maxLength: 12 }),
+          qty(200),
+          qty(60),
+          fc.constantFrom(...RULES),
+          (grossRequirements, onHand, safetyStock, lotRule) => {
+            const { rows } = mrpGrid({
+              grossRequirements,
+              onHand,
+              safetyStock,
+              lotRule,
+            }).value
+            for (const row of rows) {
+              expect(row.projectedAvailableBalance).toBeGreaterThanOrEqual(safetyStock)
+              // net_t ≤ plannedOrderReceipt_t is exact in real arithmetic: it
+              // follows from PAB_t ≥ safetyStock rearranged. So a period with no
+              // order must show no net requirement — that is what the phantom
+              // above violated.
+              expect(row.plannedOrderReceipt).toBeGreaterThanOrEqual(row.netRequirements)
+            }
+          },
+        ),
+        { numRuns: 1000 },
+      )
+    })
+  })
+
   describe('safety-stock floor', () => {
     it('reproduces a worked grid with a non-zero floor (hand-derived)', () => {
       // HAND-DERIVED — not a textbook golden. Standard MRP netting against a

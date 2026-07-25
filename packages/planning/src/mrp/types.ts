@@ -74,13 +74,24 @@ export interface MrpRow {
   scheduledReceipts: number
   /**
    * Projected available balance at the END of this period (units). Never
-   * negative, and never below the `safetyStock` floor.
+   * negative, and never below the `safetyStock` floor — including on
+   * fractional demand, where the arithmetic alone would not guarantee it.
+   *
+   * Both bounds are exact in real arithmetic, so binary floating-point residue
+   * is the only thing that can breach them; the grid snaps a balance within a
+   * relative `1e-9` of the floor onto it rather than reporting, say,
+   * `2.4999999999999964` against a floor of `2.5`. A balance genuinely below
+   * the floor by a real quantity is *not* snapped — that would mask a lot rule
+   * ordering late.
    */
   projectedAvailableBalance: number
   /**
    * Net requirement for this period (units):
    * `max(0, GR + safetyStock − PAB_prev − SR)`. Zero in periods a lot rule
-   * already covered with an earlier, larger order.
+   * already covered with an earlier, larger order — and exactly zero, not a
+   * floating-point crumb: a shortfall within the same relative `1e-9` residue
+   * tolerance is reported as `0`, so no period ever shows a phantom
+   * requirement that no planned order covers.
    */
   netRequirements: number
   /**

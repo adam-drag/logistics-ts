@@ -15,6 +15,36 @@ import type { MrpInput, MrpPlan, MrpRow, PlannedOrderSchedule } from './types'
 const MAX_NARRATED_ORDERS = 12
 
 /**
+ * Relative tolerance for deciding that a balance or requirement is *exactly* on
+ * its mathematical value and the remainder is binary floating-point residue.
+ *
+ * This is numerical hygiene, not a domain cutoff: the netting identities below
+ * are exact in real arithmetic, so any disagreement is arithmetic error and
+ * nothing else. Sizing it — IEEE-754 double `Number.EPSILON` is `≈2.22e-16`,
+ * and error accumulated by summing a horizon of `T` terms is bounded by roughly
+ * `T · ε · scale`; at a very generous `T = 10⁴` that is `≈2e-12 · scale`. `1e-9`
+ * leaves three orders of magnitude of headroom while staying nanoscopic against
+ * any quantity expressible in demand units, so it can never swallow a real
+ * requirement. Scaled by the magnitude of the terms involved, because absolute
+ * error grows with them (and floored at 1 so a horizon of tiny quantities is
+ * still compared against something meaningful).
+ *
+ * Without it, ordinary two-decimal demand leaks residue into the grid: e.g.
+ * `mrpGrid({ grossRequirements: [22.82, 12.65], onHand: 0, lotRule: silverMeal })`
+ * reported `netRequirements = 1.78e-15` in a period with no planned order and a
+ * projected balance of `−1.78e-15`, both contradicting {@link MrpRow}'s
+ * contract.
+ */
+const RESIDUE_RELATIVE_TOLERANCE = 1e-9
+
+/** Absolute residue tolerance at the magnitude of the terms being combined. */
+function residueTolerance(...terms: number[]): number {
+  let scale = 1
+  for (const term of terms) scale = Math.max(scale, Math.abs(term))
+  return RESIDUE_RELATIVE_TOLERANCE * scale
+}
+
+/**
  * Pairs each planned order with the period whose net requirement actually
  * caused it — which is **not** in general the receipt period. Period-order
  * quantity places an order at the start of every interval block, so a block
@@ -90,6 +120,12 @@ const DEFAULT_LOT_RULE: LotSizeOptions = {
  * lot-for-lot the receipt equals the net requirement exactly, so the balance
  * lands *on* the floor whenever an order is planned; under every other rule it
  * may sit above the floor.
+ *
+ * Demand does **not** have to be integral — kg, litres and hours are ordinary
+ * here — so both identities are held to their exact values against binary
+ * floating-point residue (see {@link RESIDUE_RELATIVE_TOLERANCE}); without
+ * that, two-decimal demand alone is enough to put the balance a few ULP under
+ * the floor or show a net requirement no order covers.
  *
  * Units: everything is in demand units, and every index is a **period
  * (bucket)** — never a date and never a day count. The grid inherits whatever
@@ -177,9 +213,23 @@ export function mrpGrid(input: MrpInput): MrpPlan {
   for (let period = 0; period < horizon; period++) {
     const g = gross[period] ?? 0
     const sr = receipts[period] ?? 0
-    const net = Math.max(0, g + safetyStock - balance - sr)
+    const tolerance = residueTolerance(g, sr, balance, safetyStock)
+    // Grouped as `demand − (supply already available beyond the floor)` rather
+    // than `g + ss − balance − sr`. The two are identical in real arithmetic but
+    // NOT in floating point: left-to-right, `30.3 + 2.5 − 2.5` evaluates to
+    // 30.299999999999997, so a balance sitting on the floor injected residue
+    // into the very net requirement it should have left untouched. Combining
+    // the supply terms first cancels the floor exactly.
+    const shortfall = g - (balance + sr - safetyStock)
+    const net = shortfall > tolerance ? shortfall : 0
     netSeries.push(net)
-    balance = balance + sr + net - g
+    // Whenever the shortfall reaches the floor — whether it clears the
+    // tolerance and becomes an order, or sits within it — the netting identity
+    // `balance + sr + net − g = safetyStock` puts the balance EXACTLY on the
+    // floor. Assign it instead of re-deriving it through a subtraction: the
+    // subtraction's residue would otherwise propagate into every later period's
+    // shortfall, and this series is what pass 2 lot-sizes.
+    balance = shortfall >= -tolerance ? safetyStock : balance + sr - g
   }
 
   // Pass 2 — lot-size. Hand the WHOLE net series to the dispatcher: Silver-Meal
@@ -220,8 +270,26 @@ export function mrpGrid(input: MrpInput): MrpPlan {
     const g = gross[period] ?? 0
     const receipt = receipts[period] ?? 0
     const plannedOrderReceipt = plannedReceipts[period] ?? 0
-    const netRequirements = Math.max(0, g + safetyStock - previousBalance - receipt)
-    const projectedAvailableBalance = previousBalance + receipt + plannedOrderReceipt - g
+    const tolerance = residueTolerance(
+      g,
+      receipt,
+      previousBalance,
+      plannedOrderReceipt,
+      safetyStock,
+    )
+    // Same regrouping as pass 1 — see the note there.
+    const shortfall = g - (previousBalance + receipt - safetyStock)
+    const netRequirements = shortfall > tolerance ? shortfall : 0
+    const rebuiltBalance = previousBalance + receipt + plannedOrderReceipt - g
+    // Snap to the floor from EITHER side when within residue tolerance. Both
+    // directions are provable, so a few ULP either way is arithmetic, not
+    // signal: the balance is ≥ the floor for every rule in the family (the
+    // feasibility argument in the TSDoc above), and a rule that orders exactly
+    // the net requirement lands ON it. Snapping only INSIDE the tolerance is
+    // what keeps this from masking bugs — a lot rule that genuinely orders late
+    // would breach the floor by a real quantity and still surface.
+    const projectedAvailableBalance =
+      Math.abs(rebuiltBalance - safetyStock) <= tolerance ? safetyStock : rebuiltBalance
 
     if (plannedOrderReceipt > 0) {
       totalPlanned += plannedOrderReceipt

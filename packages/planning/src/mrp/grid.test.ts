@@ -656,6 +656,39 @@ describe('mrpGrid', () => {
       expect(plan.reasoning.some((r) => r.includes('30 planned orders'))).toBe(true)
       // The full schedule is still available even when narration summarises.
       expect(plan.reasoning.some((r) => r.includes('read plannedOrders'))).toBe(true)
+      // Above the cap the per-order bullets disappear. Past-dueness is the one
+      // claim in the narration that says the plan is INFEASIBLE, so dropping it
+      // with them would make a long horizon read as healthy. Here L = 1, so the
+      // receipt in period 0 releases in period −1: exactly one past-due order.
+      expect(plan.value.plannedOrders.filter((o) => o.pastDue)).toHaveLength(1)
+      expect(plan.reasoning.some((r) => r.includes('1 is PAST DUE'))).toBe(true)
+    })
+
+    it('carries the past-due count into the summary, pluralised', () => {
+      const plan = mrpGrid({
+        grossRequirements: new Array<number>(30).fill(10),
+        onHand: 0,
+        leadTimePeriods: 3,
+      })
+      // Receipts in periods 0..2 release in periods −3..−1: three past due.
+      expect(plan.value.plannedOrders.filter((o) => o.pastDue)).toHaveLength(3)
+      expect(plan.reasoning.filter((r) => r.startsWith('planned order of'))).toHaveLength(0)
+      const summary = plan.reasoning.find((r) => r.includes('30 planned orders')) ?? ''
+      expect(summary).toContain('3 are PAST DUE')
+      expect(plan.inputs.pastDueOrders).toBe(3)
+    })
+
+    it('omits the past-due clause from the summary when every release is feasible', () => {
+      // Demand starts at period 3, so every receipt (periods 3..32) releases at
+      // or after period 0 — the clause must be absent, not always-on.
+      const plan = mrpGrid({
+        grossRequirements: [0, 0, 0, ...new Array<number>(30).fill(10)],
+        onHand: 0,
+        leadTimePeriods: 3,
+      })
+      expect(plan.value.plannedOrders.filter((o) => o.pastDue)).toHaveLength(0)
+      expect(plan.reasoning.some((r) => r.includes('PAST DUE'))).toBe(false)
+      expect(plan.warnings).toBeUndefined()
     })
 
     it('ties every release back to the net requirement that caused it (property)', () => {

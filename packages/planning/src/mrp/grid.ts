@@ -62,8 +62,9 @@ const DEFAULT_LOT_RULE: LotSizeOptions = {
  * projected available balance) plus what is already on order (scheduled
  * receipts), and create a planned order receipt for any shortfall.
  *
- * Runs in three passes, because lot sizing is not a per-period decision —
- * Silver-Meal and Wagner-Whitin need the whole net-requirements vector at once:
+ * Runs in four passes, because lot sizing is not a per-period decision —
+ * Silver-Meal and Wagner-Whitin need the whole net-requirements vector at once.
+ * The pass numbers below are the ones the implementation comments use:
  *
  * 1. **Net** — walk the horizon lot-for-lot with `PAB₋₁ = onHand`, computing
  *    `net_t = max(0, GR_t + safetyStock − PAB_{t−1} − SR_t)` and
@@ -72,11 +73,11 @@ const DEFAULT_LOT_RULE: LotSizeOptions = {
  * 2. **Lot-size** — hand that whole series to {@link lotSize} with `lotRule`,
  *    giving planned order receipts by period. A rule may order early and cover
  *    several periods with one lot.
- * 3. **Offset** — release each receipt `leadTimePeriods` earlier:
+ * 2b. **Offset** — release each receipt `leadTimePeriods` earlier:
  *    `plannedOrderRelease_{t−L} = plannedOrderReceipt_t`. A release landing
  *    before period 0 is **past due** — the receipt is kept (the demand is real)
  *    and reported in `warnings` and `plannedOrders`, never dropped or clamped.
- * 4. **Rebuild** — recompute `PAB_t = PAB_{t−1} + SR_t + PORcpt_t − GR_t`
+ * 3. **Rebuild** — recompute `PAB_t = PAB_{t−1} + SR_t + PORcpt_t − GR_t`
  *    against those receipts. Periods a lot already covered net to zero and
  *    carry the surplus forward. Note the balance follows *receipts*: a lead
  *    time shifts when an order is placed, not when it arrives.
@@ -260,7 +261,14 @@ export function mrpGrid(input: MrpInput): MrpPlan {
             return `planned order of ${round(o.quantity)} sized by '${lotRule.rule}' ${because}: receive in period ${o.receiptPeriod}, release in period ${o.releasePeriod}${o.pastDue ? ' — PAST DUE, before the start of the horizon' : ''}`
           })
         : [
-            `${plannedOrders.length} planned orders sized by '${lotRule.rule}' totalling ${round(totalPlanned)} units, each released ${leadTimePeriods} period(s) before the period it is received in (individual orders not narrated — over ${MAX_NARRATED_ORDERS} of them; read plannedOrders for the full schedule)`,
+            // The summary must not drop the past-due count: it is the one claim
+            // in the narration that says the plan is infeasible, and silently
+            // losing it above the cap would make a long horizon read as healthy.
+            `${plannedOrders.length} planned orders sized by '${lotRule.rule}' totalling ${round(totalPlanned)} units, each released ${leadTimePeriods} period(s) before the period it is received in${
+              pastDueOrders.length > 0
+                ? `, of which ${pastDueOrders.length} ${pastDueOrders.length === 1 ? 'is' : 'are'} PAST DUE — see warnings`
+                : ''
+            } (individual orders not narrated — over ${MAX_NARRATED_ORDERS} of them; read plannedOrders for the full schedule)`,
           ]
 
   const warnings =

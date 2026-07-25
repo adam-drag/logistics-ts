@@ -23,8 +23,10 @@ export interface MrpInput {
   grossRequirements: readonly number[]
   /**
    * Open orders already due, per period (units/period), index = period.
-   * Optional; omitted entries and a shorter array are treated as zero. May not
-   * be longer than `grossRequirements`.
+   * Optional, and may be **shorter** than `grossRequirements` — periods past
+   * its end are treated as zero — but never longer. Within its own length every
+   * entry must be finite and non-negative: a hole or an explicit `undefined`
+   * inside the array is a caller bug and **throws**, it is not read as zero.
    */
   scheduledReceipts?: readonly number[]
   /**

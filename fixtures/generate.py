@@ -1,11 +1,13 @@
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["statsforecast>=2.0", "statsmodels>=0.14", "numpy"]
+# dependencies = ["statsforecast>=2.0", "statsmodels>=0.14", "numpy", "stockpyl>=0.0.14"]
 # ///
-"""Generates the checked-in golden fixtures for @logistics-ts/forecasting.
+"""Generates the checked-in golden fixtures for @logistics-ts/forecasting and
+@logistics-ts/planning.
 
 Run with:  uv run fixtures/generate.py
-Output:    fixtures/forecasting.json  (consumed by packages/forecasting/src/golden.test.ts)
+Outputs:   fixtures/forecasting.json  (consumed by packages/forecasting/src/golden.test.ts)
+           fixtures/lot-sizing.json   (consumed by packages/planning/src/lot-sizing/golden.test.ts)
 
 References and why each is comparable to the TS implementation:
 
@@ -26,6 +28,15 @@ References and why each is comparable to the TS implementation:
   update then corresponds to the TS t=1 update. (statsforecast is not used here:
   its Holt/HW are ETS models with MLE-optimised initial states, which is not the
   same estimator and cannot be compared at fixed parameters.)
+
+- stockpyl (Snyder) wagner_whitin: the DP-optimal dynamic lot-sizing solution,
+  which reproduces Snyder & Shen, Fundamentals of Supply Chain Theory 2e,
+  Example 3.9. stockpyl charges holding on END-OF-PERIOD inventory, the same
+  convention as packages/planning/src/lot-sizing/cost.ts, so the total cost must
+  match exactly. NOTE the signature is wagner_whitin(num_periods, holding_cost,
+  fixed_cost, demand) — holding cost comes BEFORE fixed cost — and its output
+  lists are 1-INDEXED with a placeholder at element 0, so order_quantities[t]
+  is the order for period t and maps to our 0-indexed period t-1.
 """
 
 import json
@@ -39,8 +50,10 @@ from statsforecast.models import (
     SimpleExponentialSmoothing,
 )
 from statsmodels.tsa.holtwinters import ExponentialSmoothing, Holt
+from stockpyl.wagner_whitin import wagner_whitin
 
 OUT = Path(__file__).parent / "forecasting.json"
+OUT_LOT_SIZING = Path(__file__).parent / "lot-sizing.json"
 
 # Deterministic demand-like series (no RNG so the file never churns).
 INTERMITTENT_A = [0, 5, 0, 0, 7, 0, 0, 0, 3, 4, 0, 6, 0, 0, 2, 0]  # starts with zeros
@@ -173,3 +186,45 @@ fixtures = {
 
 OUT.write_text(json.dumps(fixtures, indent=2) + "\n")
 print(f"wrote {OUT}")
+
+
+# --- @logistics-ts/planning: Wagner-Whitin DP-optimal lot sizing ------------
+
+# (name, demand, setup/fixed cost, holding cost per unit per period)
+WW_CASES = [
+    # Snyder & Shen, Fundamentals of Supply Chain Theory 2e, Example 3.9.
+    ("FoSCT 2e Example 3.9", [90, 120, 80, 70], 500, 2),
+    # Intermittent demand: exercises zero-demand periods inside a covered run.
+    ("intermittent demand with zero periods", [10, 0, 20, 5, 40, 0, 15], 100, 1),
+    # Flat demand: exercises runs of equal size.
+    ("flat demand", [50, 50, 50, 50, 50], 300, 2),
+]
+
+
+def ww_fixture(name, demand, setup_cost, holding_cost):
+    """Runs stockpyl's WW DP and translates its 1-indexed output to our 0-indexed API."""
+    quantities, cost, _theta, _s = wagner_whitin(
+        len(demand), holding_cost, setup_cost, demand
+    )
+    # quantities is 1-indexed with a placeholder at element 0: period t (1-based)
+    # maps to our period t-1 (0-based). Only positive orders are planned receipts.
+    orders = [
+        {"period": t - 1, "quantity": int(quantities[t])}
+        for t in range(1, len(demand) + 1)
+        if quantities[t] > 0
+    ]
+    return {
+        "name": name,
+        "demand": demand,
+        "setupCost": setup_cost,
+        "holdingCostPerUnitPerPeriod": holding_cost,
+        "expected": {"orders": orders, "totalCost": float(cost)},
+    }
+
+
+lot_sizing_fixtures = {
+    "wagnerWhitin": [ww_fixture(*case) for case in WW_CASES],
+}
+
+OUT_LOT_SIZING.write_text(json.dumps(lot_sizing_fixtures, indent=2) + "\n")
+print(f"wrote {OUT_LOT_SIZING}")

@@ -1,29 +1,15 @@
 {
-  "name": "logistics-ts",
+  "name": "@logistics-ts/planning",
   "version": "0.1.1",
-  "description": "Explainable supply-chain algorithms for TypeScript: safety stock, reorder point, EOQ, ABC/XYZ classification & demand forecasting (Croston/SBA/TSB) — dependency-light, built for humans and AI agents.",
+  "description": "Lot-sizing, time-phased netting, and BOM explosion (MRP planning) for logistics-ts.",
   "license": "MIT",
   "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/adam-drag/logistics-ts.git",
-    "directory": "packages/logistics-ts"
+    "directory": "packages/planning"
   },
-  "homepage": "https://github.com/adam-drag/logistics-ts",
-  "keywords": [
-    "supply-chain",
-    "inventory",
-    "forecasting",
-    "safety-stock",
-    "reorder-point",
-    "eoq",
-    "abc-xyz",
-    "croston",
-    "demand-planning",
-    "mrp",
-    "erp",
-    "wms"
-  ],
+  "homepage": "https://github.com/adam-drag/logistics-ts/tree/main/packages/planning",
   "sideEffects": false,
   "exports": {
     ".": {
@@ -35,8 +21,7 @@
   "module": "./src/index.ts",
   "types": "./src/index.ts",
   "files": [
-    "dist",
-    "skills"
+    "dist"
   ],
   "publishConfig": {
     "access": "public",
@@ -55,10 +40,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@logistics-ts/classification": "workspace:*",
     "@logistics-ts/core": "workspace:*",
-    "@logistics-ts/forecasting": "workspace:*",
-    "@logistics-ts/inventory": "workspace:*",
-    "@logistics-ts/planning": "workspace:*"
+    "@logistics-ts/inventory": "workspace:*"
   }
 }

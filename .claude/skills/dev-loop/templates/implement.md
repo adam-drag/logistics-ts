@@ -45,6 +45,29 @@ no more, no less. Scope creep is a failure, not initiative.
 - **Do NOT git commit, push, or open a PR.** Leave your work in the working tree;
   review happens against the local diff. Git is the human's job.
 
+## Mutation-test your own tests — and follow this protocol exactly
+A passing test can guard nothing. Before you report, prove each load-bearing test
+bites: introduce the plausible bug it is supposed to catch, confirm the suite goes
+red, revert. Both failure modes below have actually happened here and both produced
+a *confident and wrong* report, so the mechanics are not optional:
+- **NEVER `git checkout`, `git restore`, or `git stash` a file you have changed.**
+  They restore from the index, and your increment is uncommitted — they will
+  silently wipe your own work rather than undo the mutant.
+- Take a backup with `command cp` *before* the first mutant and restore from it with
+  `command cp`. Plain `cp` may be an interactive `cp -i` alias that prompts and
+  silently fails — that is the root cause of both incidents.
+- Keep the backup **outside the repo** (`/tmp/…`) or under the gitignored
+  `.dev-loop/`; a stray `foo.ts.bak` shows up as an untracked file in the review diff.
+- **`grep`-verify the mutated line actually changed before you run**, `grep`-verify
+  the revert afterwards, and finish with `md5sum` against the backup.
+- Identical failure output across supposedly different mutants is a red flag, not
+  corroboration — it means a mutant never landed.
+- In NOTES, say **which assertion** caught each mutant, one line per mutant.
+- Before writing a property test, ask **which implementation line the property can be
+  algebraically derived from** — it cannot constrain any other line. A property that
+  telescopes out of the code it is meant to check (e.g. a "conservation" identity
+  that is just the balance-update line summed) passes for any implementation.
+
 ## Working style — SMALL and STEADY (this is critical)
 - This increment is meant to be small. If it turns out bigger than ~1 file of real
   logic or ~{{DIFF_BUDGET}} changed lines, STOP and report `STATUS: needs_human`

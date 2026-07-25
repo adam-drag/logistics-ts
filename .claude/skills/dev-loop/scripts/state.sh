@@ -11,6 +11,10 @@
 #   state.sh set KEY VALUE                   # set one field
 #   state.sh incr-cycle                      # +1 the review cycle counter, print it
 #   state.sh reset-cycle                     # cycle -> 0 (call when starting a new increment)
+#
+# `supervise.sh` re-reads two of these keys on every tick, so keep them current:
+#   baseline    advance it on each approved increment (SKILL.md §5)
+#   scopeGlobs  space-separated globs for THIS increment, set on each dispatch (§1)
 set -euo pipefail
 
 REPO="$(git rev-parse --show-toplevel)"
@@ -18,6 +22,11 @@ DIR="$REPO/.dev-loop"
 FILE="$DIR/state.json"
 
 now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+# Temp file must live NEXT TO the target so `mv` is a same-filesystem atomic
+# rename. `mktemp` defaults to /tmp, which is usually a different filesystem —
+# there `mv` degrades to copy+unlink and supervise.sh, which now re-reads this
+# file every tick, can observe a half-written state.json.
+newtmp() { mktemp "$DIR/.state.XXXXXX"; }
 
 cmd="${1:-show}"; shift || true
 
@@ -40,6 +49,7 @@ case "$cmd" in
       baseline: $base,
       agentBName: $agent,
       increment: "",
+      scopeGlobs: "",
       findingsOpen: false,
       startedAt: $t,
       updatedAt: $t
@@ -56,7 +66,7 @@ case "$cmd" in
     ;;
   set)
     key="$1"; val="$2"
-    tmp="$(mktemp)"
+    tmp="$(newtmp)"
     # numbers/bools stay typed; everything else is a string
     if [[ "$val" =~ ^-?[0-9]+$ || "$val" == "true" || "$val" == "false" ]]; then
       jq --arg k "$key" --argjson v "$val" --arg t "$(now)" '.[$k]=$v | .updatedAt=$t' "$FILE" > "$tmp"
@@ -66,12 +76,12 @@ case "$cmd" in
     mv "$tmp" "$FILE"
     ;;
   incr-cycle)
-    tmp="$(mktemp)"
+    tmp="$(newtmp)"
     jq --arg t "$(now)" '.cycle += 1 | .updatedAt=$t' "$FILE" > "$tmp"; mv "$tmp" "$FILE"
     jq -r '.cycle' "$FILE"
     ;;
   reset-cycle)
-    tmp="$(mktemp)"
+    tmp="$(newtmp)"
     jq --arg t "$(now)" '.cycle = 0 | .updatedAt=$t' "$FILE" > "$tmp"; mv "$tmp" "$FILE"
     ;;
   *)

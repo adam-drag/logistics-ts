@@ -263,6 +263,24 @@ changes required for approval in one or two sentences.
   manifest, and the umbrella diff was a single added dependency line. Misattribution
   is expensive twice over — it costs the author a wasted investigation and it spends
   the credibility that makes your real findings land.
+- **Before reviewing a PR, confirm it still changes anything.** `gh pr view --json
+  files` and `gh pr diff` both describe the *branch*, not what merging it would
+  apply: they are computed from the merge-base, so a branch whose content already
+  reached `main` by another route still reports a full file list and a
+  `MERGEABLE` status. Reviewing it is pure waste, and any finding you raise is
+  about code that is already merged. One command settles it — diff the actual
+  3-way merge result against main:
+  ```bash
+  git fetch origin
+  git diff --stat origin/main "$(git merge-tree --write-tree origin/main origin/<branch>)"
+  ```
+  Empty output = the PR is a no-op; say so and recommend closing instead of
+  reviewing. (Caught reviewing PR#28: its four commits of skill lessons had
+  already landed in `main` via the squash-merge of PR#29, so `gh` showed
+  +275/−27 across five files and the real merge changed nothing. Note the
+  two-dot `git diff origin/main origin/<branch>` is *also* misleading here — for
+  a branch that predates recent work it shows every later commit as a deletion,
+  which looks alarming and is not what a merge does.)
 - Be fair: distinguish "I'd do it differently" (Minor/Alternative) from "this is
   wrong" (Critical/Major). A convention here (Explained<T>, no `any`, cited tests,
   layering) is **not** a matter of taste — violations are Major, not Minor.

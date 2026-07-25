@@ -50,15 +50,29 @@ BASELINE="$(read_baseline)"; BASELINE="${BASELINE:-HEAD}"
 # "..."`, which SKILL.md §1 requires on every dispatch); fall back to the launch
 # env var for a one-shot run. Caching this at launch flags legitimately in-scope
 # files for every increment after the first. (Observed M8 inc3.)
+#
+# Like read_baseline, this must distinguish "state says the scope is X" from "I
+# could not read the state at all" — and it cannot do that through the returned
+# string, because an unreadable file and a deliberately-cleared `scopeGlobs`
+# both yield empty. So it signals the unreadable case with a NON-ZERO EXIT and
+# the caller keeps the scope it already has. Falling back to the launch env var
+# there (usually empty, since SKILL.md §1 says not to pass one in the loop)
+# would blank SCOPE_GLOBS for that tick: the SCOPE_VIOLATION tripwire silently
+# switches off, every per-file latch is re-armed, and the next tick re-reports
+# violations already reported. That is exactly the "re-frame every tripwire on a
+# transient read" failure read_baseline is written to avoid.
 read_scope() {
-  local s; s="$(jq -r '.scopeGlobs // empty' "$STATE" 2>/dev/null)"
-  [ -n "$s" ] && { printf '%s' "$s"; return; }
+  local s
+  s="$(jq -r '.scopeGlobs // empty' "$STATE" 2>/dev/null)" || return 1
+  [ -n "$s" ] && { printf '%s' "$s"; return 0; }
   printf '%s' "$SCOPE_GLOBS_ENV"
 }
 POLL_SECS="${POLL_SECS:-30}"
 STALL_SECS="${STALL_SECS:-300}"
 DIFF_BUDGET="${DIFF_BUDGET:-800}"
-SCOPE_GLOBS="$(read_scope)"
+# At LAUNCH an unreadable state is not "no news" — there is nothing to keep — so
+# here, and only here, fall back to what the operator passed in.
+SCOPE_GLOBS="$(read_scope)" || SCOPE_GLOBS="$SCOPE_GLOBS_ENV"
 
 sig() { git -C "$REPO" status --porcelain=v1; git -C "$REPO" diff --stat "$BASELINE" 2>/dev/null; }
 # Line/file counts must include brand-new UNTRACKED files — plain `git diff`
@@ -131,8 +145,9 @@ while true; do
   # Scope can widen mid-increment too (a brief may add the umbrella or
   # .changeset/), so refresh it every tick and re-arm the per-file latches when
   # it changes — a file flagged under the old scope may be legitimate now.
-  new_scope="$(read_scope)"
-  if [ "$new_scope" != "$SCOPE_GLOBS" ]; then
+  # An unreadable state.json (missing, or a tick landing mid-rewrite) exits
+  # non-zero: keep the scope we already have rather than blanking the tripwire.
+  if new_scope="$(read_scope)" && [ "$new_scope" != "$SCOPE_GLOBS" ]; then
     SCOPE_GLOBS="$new_scope"
     unset scope_emitted; declare -A scope_emitted
   fi

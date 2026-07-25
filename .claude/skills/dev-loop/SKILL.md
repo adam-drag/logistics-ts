@@ -119,11 +119,19 @@ When B's task-notification arrives, read its final message's `=== DEV-LOOP STATU
 ### 5. Increment approved → commit and advance the baseline
 This step is what keeps every later review cheap and honest. On approval:
 ```bash
-git add -A && git commit   # message: what shipped + how it was VERIFIED
+git add -A && git commit -F - <<'MSG'
+<subject: what shipped>
+
+<body: how it was VERIFIED — reference values reproduced, properties added,
+deviations and why>
+MSG
 NEW=$(git rev-parse HEAD)
 scripts/state.sh set baseline "$NEW"
 scripts/state.sh reset-cycle
 ```
+Pass the message in — a bare `git commit` opens `$EDITOR` and **hangs** a
+non-interactive agent until the tool times out. `-F -` takes the multi-line body
+below without the quoting contortions of repeated `-m`. No trailers of any kind.
 Then mark the todo done. Write the commit body to record the *evidence* (reference
 values reproduced, property tests added, deviations and why) — future readers get
 the reasoning, not just the change.

@@ -341,6 +341,36 @@ validate structurally, not trust a partial shape.
     actually reaches the inputs where it bites — and to say so in a comment, since
     a future "simplification" that pins the generator to one case would silently
     hollow it out. (M8 increment 2 review.)
+  - **(d) Sound property, unreachable input — the generator never offers the case
+    that breaks it.** The property is correct and *would* catch the bug; the
+    generator simply never produces an input where it bites, so it is vacuous in
+    practice while looking rigorous. Every property in `mrp/grid.test.ts` sampled
+    demand with `fc.nat`, so `mrpGrid` shipped with two `MrpRow` guarantees —
+    "never negative, and never below the `safetyStock` floor" — that ordinary
+    fractional demand falsifies: `{ grossRequirements: [10.1, 20.2, 30.3],
+    onHand: 5.05, safetyStock: 2.5 }` produced `PAB = 2.4999999999999964`, and a
+    silver-meal case produced `netRequirements = 1.78e-15` in a period with no
+    order and a *negative* balance. The assertions were right; the inputs never
+    arrived. Note this is NOT prevented by knowing (c) — (c) says "confirm the
+    generator reaches the inputs where it bites", which is true but too abstract
+    to act on. Two mechanical checks that are:
+    - **Compare the generator's domain to what the TYPE permits.** The parameter
+      is `number`; `fc.nat` is integers. Any gap between the two is untested
+      surface, and for a continuous quantity (units, currency, rates) that gap is
+      where float residue lives. `fc.integer(...).map(n => n / 100)` gives
+      realistic two-decimal quantities — prefer it to raw `fc.double`, whose range
+      reaches subnormals (~1e-308) where a 1-ULP disagreement is IEEE-754, not a
+      defect, and only wastes a shrink cycle.
+    - **Diff a new test file's generators against its SIBLINGS in the same
+      package.** `grid.test.ts` was the only property file in the repo sampling a
+      continuous quantity with `fc.nat` — `cost.test.ts`, `wagner-whitin.test.ts`,
+      `silver-meal.test.ts` and `fill-rate.test.ts` all used `fc.double`. One
+      `grep -ohE 'fc\.(nat|integer|double)\([^)]*\)'` across the package would have
+      shown the outlier. A new file that quietly diverges from the convention its
+      neighbours follow is the cheapest possible signal, and it costs one command.
+    (Caught only when Adam asked "is it top quality?" *after* a full review had
+    approved the PR — i.e. an external prompt caught what the process passed, which
+    is the definition of a checklist gap. Fixed in `mrp/grid.ts` + `grid.test.ts`.)
   (Caught: M8 increment 1 review; `mrp/grid.test.ts`. Authored by the orchestrator's
   own brief, which called it "the strongest single check on the recursion" — the
   pattern was already written down here and still got authored, so treat this as

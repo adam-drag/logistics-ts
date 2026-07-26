@@ -102,6 +102,35 @@ finding when the change adds a new package, a new export, or a plan-level decisi
 - Where a mathematical law exists, a **property test** should assert it (monotonicity,
   scale invariance, conservation, non-negativity, round-trip). Absence is a finding
   when the law is load-bearing.
+- **Read the GENERATORS, not just the assertions.** A property is only as strong as
+  the inputs it is offered, and a sound assertion over too narrow a domain looks
+  rigorous while testing nothing — it produces no wrong-looking line anywhere. Two
+  checks, both mechanical:
+  - **Generator domain vs. the type's domain.** If the parameter is `number` and the
+    generator is `fc.nat`, every non-integer input is untested. For a *continuous*
+    quantity (units, currency, rates, probabilities) that gap is exactly where
+    floating-point residue breaks an invariant the TSDoc states unconditionally.
+    Flag an unconditional "never negative" / "never below X" claim whose property
+    only ever sees integers.
+  - **Diff the new file's generators against its siblings.** One command, per file,
+    so the outlier is visible rather than inferred:
+    ```bash
+    grep -rlE "fc\.assert" packages/<pkg>/src --include="*.test.ts" | sort | while read -r f; do
+      printf '%-52s ' "$f"
+      grep -ohE "fc\.(nat|integer|double|float)\(" "$f" | sort -u | tr '\n' ' '; echo
+    done
+    ```
+    A new test file that samples a continuous quantity with `fc.nat` while every
+    neighbour uses `fc.double` is an outlier worth a finding on its own. On the
+    pre-fix M8 tree this printed `mrp/grid.test.ts  fc.nat(` against three siblings
+    all carrying `fc.double(` — the defect, in one line.
+    Use `grep -r --include`, **not** a `src/**/*.test.ts` glob: without `shopt -s
+    globstar` that glob matches only one directory level and silently skips
+    `mrp/`-style subdirectories — i.e. it misses exactly the file this check exists
+    to find. (Verified: the globstar form omitted `grid.test.ts` entirely.)
+  (Caught post-merge on M8: `mrp/grid.test.ts` was the repo's only property file
+  sampling demand with `fc.nat`, and two documented `MrpRow` guarantees were false
+  on plain two-decimal demand. A full review had already approved it.)
 
 ### 4b. `@example` and TSDoc accuracy
 - Every exported `@example`'s numbers must match **both** what the code returns and

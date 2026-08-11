@@ -1,10 +1,13 @@
 # CLAUDE.md — logistics-ts
 
 Operational guide for Claude Code working in this repo. For the full contributor
-reference (repository map, milestone log, conventions rationale) read
-[`AGENTS.md`](AGENTS.md); for scope and design decisions read
-[`plans/v0.1.md`](plans/v0.1.md) and [`research.md`](research.md). This file is the
-short version: what to load, the rules you must not break, and how to ship a change.
+reference (API map, repository map, conventions rationale) read
+[`AGENTS.md`](AGENTS.md). This file is the short version: what to load, the rules
+you must not break, and how to ship a change.
+
+`plans/` and `research.md` hold the scope and design rationale but are **private
+and gitignored** — they are not in the repo, so don't go looking for them. If a
+task needs a decision recorded only there, ask.
 
 ## What this is
 
@@ -15,12 +18,16 @@ that **every decision-support result is explainable** — a value plus the metho
 inputs, reasoning, and citations behind it — because the primary consumers are both
 humans and AI agents reading the types and TSDoc directly.
 
-pnpm monorepo. ESM-only, TypeScript strict. Status: M0 scaffold, M1 core, M2
-classification, M3 forecasting, M4 inventory, M5 agent surface (skills, examples,
-llms.txt, README, API map) done. Release automation is wired up
-(`.github/workflows/release.yml`, changesets version-PR bot + npm publish on merge).
-**Remaining before 0.1.0: merge the first "Version Packages" PR to publish 0.1.0,
-then Context7 submission.**
+pnpm monorepo. ESM-only, TypeScript strict. **Shipped and merged to `main`:** M0
+scaffold, M1 core, M2 classification, M3 forecasting, M4 inventory, M5 agent
+surface (skills, examples, llms.txt, README, API map), M6 fill-rate / Type-2
+service, M7 `@logistics-ts/planning` lot-sizing family, M8 `mrpGrid` time-phased
+netting. Release automation runs itself (`.github/workflows/release.yml`,
+changesets version-PR bot + npm publish on merge); `logistics-ts@0.1.1` is on npm.
+
+**Open:** the "Version Packages" PR would publish **0.2.0** (pending changesets:
+`inventory` minor for M6, `planning` minor for M7/M8). Context7 submission is
+still outstanding as far as anything in this repo records.
 
 ## Session start
 
@@ -34,9 +41,16 @@ never repeated, whatever the session's task.
 core            @logistics-ts/core            model, loaders, bucketize, numerics, synthetic, Explained<>
 classification  @logistics-ts/classification  ABC/XYZ/FSN/matrix/SBC          -> core
 forecasting     @logistics-ts/forecasting      MA/SES/Holt/HW/Croston/SBA/TSB/auto  -> core, classification
-inventory       @logistics-ts/inventory        safety stock/ROP/EOQ/coverage/turnover/issues -> core, classification, forecasting
+inventory       @logistics-ts/inventory        safety stock/ROP/EOQ/fill rate/coverage/turnover/issues -> core, classification, forecasting
+planning        @logistics-ts/planning        lot-sizing family + mrpGrid netting  -> core, inventory
 logistics-ts    logistics-ts                  umbrella re-export + InventoryAnalyzer + ships skills/
 ```
+
+`planning` sits above `inventory` and **may** import from core / classification /
+forecasting / inventory. It currently declares only `core` and `inventory`, which
+is deliberate: declare a dependency when you *import* it, never because the layer
+permits it. `deps:check` validates import direction only and will not catch an
+unused declaration.
 
 A package imports only from **lower** layers — never sideways or up. `core` stays a
 **zero-runtime-dependency leaf**. Adding a lower-layer import means adding it to that

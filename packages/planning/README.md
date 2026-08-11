@@ -5,9 +5,13 @@
 
 Production and inventory **planning** for
 [`logistics-ts`](https://www.npmjs.com/package/logistics-ts): the lot-sizing
-family that turns a per-period demand vector into a costed order plan. Every
-result returns `Explained<T>` — the plan, plus the method, inputs, reasoning,
-and citations behind it.
+family that turns a per-period demand vector into a costed order plan, and the
+**time-phased netting grid** (MRP record) that decides what actually needs
+ordering in the first place. Every result returns `Explained<T>` — the plan,
+plus the method, inputs, reasoning, and citations behind it.
+
+Scope is deliberate: the grid is **single-item** netting. BOM explosion and
+multi-level MRP are not shipped yet.
 
 ## Install
 
@@ -72,6 +76,67 @@ lotSize(demand, { rule: 'foq', ...costs, orderQuantity: 150 })
 Costs use consistent units: `demand` in units/period, `setupCost` in
 currency/order, and `holdingCostPerUnitPerPeriod` in currency/unit/period.
 
+## Time-phased netting grid (MRP record)
+
+Lot sizing answers *how much to order at once*. `mrpGrid` answers the prior
+question — *what actually needs ordering*, once existing stock, open orders, and
+a safety-stock floor are accounted for. It is the canonical MRP record (Orlicky;
+APICS/ASCM CPIM), one row per period:
+
+| column | meaning |
+| --- | --- |
+| `grossRequirements` | demand in the period |
+| `scheduledReceipts` | open orders already due |
+| `projectedAvailableBalance` | stock at end of period; never below `safetyStock` |
+| `netRequirements` | `max(0, GR + safetyStock − PAB_prev − SR)` |
+| `plannedOrderReceipt` | lot-sized order arriving in the period |
+| `plannedOrderRelease` | that receipt offset *left* by `leadTimePeriods` |
+
+```ts
+import { mrpGrid } from '@logistics-ts/planning'
+
+const plan = mrpGrid({
+  grossRequirements: [10, 0, 40, 30, 0, 50],
+  scheduledReceipts: [0, 0, 15, 0, 0, 0],
+  onHand: 20,
+  leadTimePeriods: 2,
+})
+
+plan.value.rows.map((r) => r.netRequirements)     // [0, 0, 15, 30, 0, 50]
+plan.value.rows.map((r) => r.plannedOrderRelease) // [15, 30, 0, 50, 0, 0]
+plan.value.plannedOrders
+// [{ releasePeriod: 0, receiptPeriod: 2, quantity: 15, pastDue: false }, ...]
+
+plan.reasoning // narrates each order: what caused it, what sized it, when to release
+```
+
+**Safety stock** is netted against as if it were extra demand, so
+`projectedAvailableBalance` never drops below the floor — this pulls orders
+earlier and larger.
+
+**Lot rules are pluggable** and default to lot-for-lot. The grid hands the
+*whole* net-requirements vector to `lotSize` rather than sizing period by
+period, because Silver-Meal and Wagner-Whitin are horizon algorithms:
+
+```ts
+mrpGrid({
+  grossRequirements: [40, 60, 0, 90, 70],
+  onHand: 55,
+  safetyStock: 15,
+  lotRule: { rule: 'wagner-whitin', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
+})
+```
+
+**Lead time is in periods (buckets), never days.** `leadTimePeriods: 2` on a
+weekly grid means two weeks — convert a day-denominated supplier lead time
+before calling.
+
+**Past-due orders are surfaced, not hidden.** If a release would land before
+period 0, the receipt is kept (the demand is real) and reported both in
+`warnings` and in `plannedOrders` with `pastDue: true` — never silently dropped
+or clamped into period 0. A planner needs to know the plan is infeasible as
+scheduled.
+
 ## In the umbrella package
 
 `@logistics-ts/planning` is re-exported as the `planning` namespace from
@@ -81,6 +146,7 @@ currency/order, and `holdingCostPerUnitPerPeriod` in currency/unit/period.
 import { planning } from 'logistics-ts'
 
 planning.wagnerWhitin([90, 120, 80, 70], { setupCost: 500, holdingCostPerUnitPerPeriod: 2 })
+planning.mrpGrid({ grossRequirements: [10, 0, 40], onHand: 20, leadTimePeriods: 1 })
 ```
 
 `@logistics-ts/planning` sits above `@logistics-ts/inventory` in the layering, so

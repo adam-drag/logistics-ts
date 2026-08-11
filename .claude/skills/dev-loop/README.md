@@ -29,7 +29,7 @@ something is actionable (stuck / runaway diff / out of scope).
 |------|-----|------|-----------------|
 | **A — orchestrator** | your main Claude Code session | decompose → dispatch → review → adjudicate → report | ✅ only A |
 | **B — implementer** | a *named background subagent* | builds ONE small increment, leaves it in the working tree | ❌ |
-| **Reviewer** | a *fresh subagent per cycle*, read-only | reviews the local diff, returns findings | ❌ |
+| **Reviewer** | a *fresh subagent per cycle* | reviews the local diff, returns findings, leaves no net change | ❌ |
 
 Separating "build" from "review" is the whole point — an agent that wrote the code
 can't review it with a detached eye (the *verifier pattern*). The reviewer is
@@ -126,9 +126,17 @@ Env knobs for `supervise.sh` (set inline in the Monitor command):
 | `POLL_SECS` | 30 | how often the watchdog checks the tree |
 | `STALL_SECS` | 300 | no tree change for this long → `STUCK` |
 | `DIFF_BUDGET` | 800 | changed lines above this → `RUNAWAY_DIFF` |
-| `SCOPE_GLOBS` | _(unset)_ | space-separated **patterns** (not expanded); a changed file outside them → `SCOPE_VIOLATION` |
+| `SCOPE_GLOBS` | _(unset)_ | fallback only — space-separated **patterns** (not expanded); a changed file outside them → `SCOPE_VIOLATION` |
 
-`SCOPE_GLOBS` entries are matched with `case`, with pathname expansion disabled
+Inside the loop the scope does **not** come from the env var. `supervise.sh` re-reads
+`baseline` and `scopeGlobs` from `.dev-loop/state.json` on every tick, so both follow
+the loop as A commits an approved increment and dispatches the next one
+(`state.sh set scopeGlobs "…"`, required per dispatch). Anything baked into the
+Monitor command is frozen at launch and goes stale after increment 1 — that was the
+M8 bug, and it hit the baseline and the scope one commit apart. The `SCOPE_GLOBS`
+env var is kept only for running the script by hand outside the loop.
+
+Scope entries are matched with `case`, with pathname expansion disabled
 (`set -f` in `in_scope`) — without that the shell expands `packages/foo/**` against
 the filesystem *before* it is used as a pattern, and every nested file falsely
 reports `SCOPE_VIOLATION`. Since `case` lets `*` cross `/`, `packages/foo/**`

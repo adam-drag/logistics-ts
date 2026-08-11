@@ -4,9 +4,16 @@
  * Internal — not re-exported from the package index.
  */
 
-/** Throws unless `value` is a finite number `≥ 0`. */
-export function requireNonNegative(name: string, value: number): void {
-  if (!Number.isFinite(value) || value < 0) {
+/**
+ * Throws unless `value` is a finite number `≥ 0`. `undefined` is accepted as an
+ * argument type — an untyped JS caller can pass a hole or a missing entry — and
+ * is rejected, since `Number.isFinite(undefined)` is `false`.
+ */
+export function requireNonNegative(
+  name: string,
+  value: number | undefined,
+): asserts value is number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
     throw new Error(`${name} must be finite and non-negative (got ${value})`)
   }
 }

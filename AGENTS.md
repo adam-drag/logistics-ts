@@ -21,7 +21,7 @@ inventory features on top of. Roadmap: [`plans/v0.1.md`](plans/v0.1.md).
 ## API map — which function for which problem
 
 Import from the umbrella (`import { core, forecasting, classification, inventory,
-InventoryAnalyzer } from 'logistics-ts'`) or the scoped packages directly. Every
+planning, InventoryAnalyzer } from 'logistics-ts'`) or the scoped packages directly. Every
 domain function returns `Explained<T>` (`.value` + `.method` + `.inputs` +
 `.reasoning` + optional `.citations`/`.warnings`).
 
@@ -43,6 +43,9 @@ domain function returns `Explained<T>` (`.value` + `.method` + `.inputs` +
 | Compute an order quantity | `eoq` / `epq` / `eoqWithQuantityDiscounts` | inventory |
 | Days of inventory / turnover | `coverage` / `turnover` | inventory |
 | One "what needs attention" list | `issues(stock, demand, leadTimes, { serviceLevel })` | inventory |
+| Hit a target fill rate (Type-2 service, β) | `fillRate` / `safetyStockForFillRate` / `serviceMetrics` | inventory |
+| Size lots over a demand vector | `lotSize(demand, { rule })` — or a rule directly (`wagnerWhitin` is the optimum) | planning |
+| Net demand against stock and open orders | `mrpGrid({ grossRequirements, onHand, scheduledReceipts, leadTimePeriods })` | planning |
 | Run several analyses over one held dataset | `new InventoryAnalyzer({ demand, stock, leadTimes })` | logistics-ts |
 
 For end-to-end recipes see the shipped skills in
@@ -76,14 +79,14 @@ packages/
   core/            @logistics-ts/core           — model, loaders, bucketize, numerics, synthetic, Explained<>
   forecasting/     @logistics-ts/forecasting    — MA/SES/Holt/HW, Croston/SBA/TSB, decompose, backtest, autoForecast, metrics
   classification/  @logistics-ts/classification — ABC/XYZ/FSN/matrix/SBC demand pattern
-  inventory/       @logistics-ts/inventory      — safety stock, ROP, EOQ, coverage, turnover, issues
+  inventory/       @logistics-ts/inventory      — safety stock, ROP, EOQ, fill rate, coverage, turnover, issues
+  planning/        @logistics-ts/planning       — lot-sizing family (L4L/FOQ/POQ/Silver-Meal/LUC/Wagner-Whitin) + mrpGrid
   logistics-ts/    logistics-ts                 — umbrella re-export + InventoryAnalyzer; ships skills/
     skills/        forecast-and-replenish, inventory-analysis — agent skills in the published tarball
 examples/          runnable end-to-end scripts (tsx) driven by generateExampleData()
-plans/             milestone plans
-concept.md         original product concept
-research.md        competitive / feasibility / algorithm research
 llms.txt           agent entry point (llmstxt.org): API map + doc links
+
+plans/, concept.md and research.md are PRIVATE and gitignored — not in the repo.
 ```
 
 ## Dependency direction (enforced by `pnpm deps:check`)
@@ -95,6 +98,7 @@ Layers, most stable first — a package may import only from **lower** layers:
 1  classification  -> core
 2  forecasting     -> core, classification          (autoForecast routes via SBC)
 3  inventory       -> core, classification, forecasting
+3.5 planning       -> core, inventory                (may import classification/forecasting; declares neither)
 4  logistics-ts    -> all of the above (umbrella)
 ```
 

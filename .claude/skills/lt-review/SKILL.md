@@ -102,6 +102,40 @@ finding when the change adds a new package, a new export, or a plan-level decisi
 - Where a mathematical law exists, a **property test** should assert it (monotonicity,
   scale invariance, conservation, non-negativity, round-trip). Absence is a finding
   when the law is load-bearing.
+- **Read the GENERATORS, not just the assertions.** A property is only as strong as
+  the inputs it is offered, and a sound assertion over too narrow a domain looks
+  rigorous while testing nothing — it produces no wrong-looking line anywhere. Two
+  checks, both mechanical:
+  - **Generator domain vs. the type's domain.** If the parameter is `number` and the
+    generator is `fc.nat`, every non-integer input is untested. For a *continuous*
+    quantity (units, currency, rates, probabilities) that gap is exactly where
+    floating-point residue breaks an invariant the TSDoc states unconditionally.
+    Flag an unconditional "never negative" / "never below X" claim whose property
+    only ever sees integers.
+  - **Diff the new file's generators against its siblings.** One command, per file,
+    so the outlier is visible rather than inferred:
+    ```bash
+    grep -rlE "fc\.assert" packages/*/src --include="*.test.ts" | sort | while read -r f; do
+      printf '%-56s ' "$f"
+      grep -ohE "fc\.(nat|integer|double|float)\(" "$f" | sort -u | tr '\n' ' '; echo
+    done
+    ```
+    The tell is the **absence of `fc.double`**, not the presence of `fc.nat` — a file
+    listing *only* `fc.nat(` samples nothing fractional anywhere. On the pre-fix M8
+    tree `mrp/grid.test.ts` was the sole such row; its siblings all carried
+    `fc.double(` for at least one argument. Do not read "has `fc.nat`" as the signal:
+    `cost.test.ts` and `wagner-whitin.test.ts` sample *demand* with `fc.nat` too and
+    are simply not exclusive.
+    Use `grep -r --include`, **not** a `src/**/*.test.ts` glob. Not for the reason you
+    might expect: `**` without `shopt -s globstar` behaves as a single `*`, so it still
+    reaches one level down (`mrp/`, `lot-sizing/`) — what it silently drops is every
+    **top-level** `src/*.test.ts`. Repo-wide that is 17 files matched instead of 42,
+    losing all of `classification`, `core/explained.test.ts`, and most of `forecasting`
+    and `inventory`. `**` is shell- and `shopt`-dependent; `grep -r` is neither.
+  (Caught on M8 after a full review had approved the PR but before it merged:
+  `mrp/grid.test.ts` was the repo's only property file sampling *exclusively* with
+  `fc.nat`, and two documented `MrpRow` guarantees were false on plain two-decimal
+  demand. See `self-improve` → hollow-test species (d) for the authoring-side recipe.)
 
 ### 4b. `@example` and TSDoc accuracy
 - Every exported `@example`'s numbers must match **both** what the code returns and

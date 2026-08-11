@@ -89,6 +89,18 @@ importers:
       '@logistics-ts/inventory':
         specifier: workspace:*
         version: link:../inventory
+      '@logistics-ts/planning':
+        specifier: workspace:*
+        version: link:../planning
+
+  packages/planning:
+    dependencies:
+      '@logistics-ts/core':
+        specifier: workspace:*
+        version: link:../core
+      '@logistics-ts/inventory':
+        specifier: workspace:*
+        version: link:../inventory
 
 packages:
 

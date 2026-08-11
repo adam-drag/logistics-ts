@@ -3,11 +3,12 @@
  *
  * Layers, most stable first — a package may import only from LOWER layers:
  *
- *   0  core            (zero runtime dependencies)
- *   1  classification  -> core
- *   2  forecasting     -> core, classification        (autoForecast routes via SBC)
- *   3  inventory       -> core, classification, forecasting
- *   4  logistics-ts    -> all of the above (umbrella)
+ *   0    core            (zero runtime dependencies)
+ *   1    classification  -> core
+ *   2    forecasting     -> core, classification        (autoForecast routes via SBC)
+ *   3    inventory       -> core, classification, forecasting
+ *   3.5  planning        -> core, classification, forecasting, inventory
+ *   4    logistics-ts    -> all of the above (umbrella)
  *
  * Any import that points "up" a layer (or sideways into a same-layer sibling)
  * is forbidden, as is any cycle. This keeps the graph a DAG with a single
@@ -27,27 +28,35 @@ module.exports = {
       severity: 'error',
       comment: 'core (layer 0) must not depend on any sibling package.',
       from: { path: 'packages/core/src' },
-      to: { path: 'packages/(classification|forecasting|inventory|logistics-ts)/src' },
+      to: { path: 'packages/(classification|forecasting|inventory|planning|logistics-ts)/src' },
     },
     {
       name: 'classification-only-uses-core',
       severity: 'error',
       comment: 'classification (layer 1) may depend only on core.',
       from: { path: 'packages/classification/src' },
-      to: { path: 'packages/(forecasting|inventory|logistics-ts)/src' },
+      to: { path: 'packages/(forecasting|inventory|planning|logistics-ts)/src' },
     },
     {
       name: 'forecasting-stays-below-inventory',
       severity: 'error',
       comment: 'forecasting (layer 2) may depend only on core and classification.',
       from: { path: 'packages/forecasting/src' },
-      to: { path: 'packages/(inventory|logistics-ts)/src' },
+      to: { path: 'packages/(inventory|planning|logistics-ts)/src' },
     },
     {
       name: 'inventory-below-umbrella',
       severity: 'error',
-      comment: 'inventory (layer 3) must not depend on the umbrella package.',
+      comment: 'inventory (layer 3) must not depend on planning or the umbrella package.',
       from: { path: 'packages/inventory/src' },
+      to: { path: 'packages/(planning|logistics-ts)/src' },
+    },
+    {
+      name: 'planning-below-umbrella',
+      severity: 'error',
+      comment:
+        'planning (layer 3.5) may depend on core/classification/forecasting/inventory (all downward) but not the umbrella package.',
+      from: { path: 'packages/planning/src' },
       to: { path: 'packages/logistics-ts/src' },
     },
   ],

@@ -1,0 +1,80 @@
+{
+  "wagnerWhitin": [
+    {
+      "name": "FoSCT 2e Example 3.9",
+      "demand": [
+        90,
+        120,
+        80,
+        70
+      ],
+      "setupCost": 500,
+      "holdingCostPerUnitPerPeriod": 2,
+      "expected": {
+        "orders": [
+          {
+            "period": 0,
+            "quantity": 210
+          },
+          {
+            "period": 2,
+            "quantity": 150
+          }
+        ],
+        "totalCost": 1380.0
+      }
+    },
+    {
+      "name": "intermittent demand with zero periods",
+      "demand": [
+        10,
+        0,
+        20,
+        5,
+        40,
+        0,
+        15
+      ],
+      "setupCost": 100,
+      "holdingCostPerUnitPerPeriod": 1,
+      "expected": {
+        "orders": [
+          {
+            "period": 0,
+            "quantity": 35
+          },
+          {
+            "period": 4,
+            "quantity": 55
+          }
+        ],
+        "totalCost": 285.0
+      }
+    },
+    {
+      "name": "flat demand",
+      "demand": [
+        50,
+        50,
+        50,
+        50,
+        50
+      ],
+      "setupCost": 300,
+      "holdingCostPerUnitPerPeriod": 2,
+      "expected": {
+        "orders": [
+          {
+            "period": 0,
+            "quantity": 100
+          },
+          {
+            "period": 2,
+            "quantity": 150
+          }
+        ],
+        "totalCost": 1000.0
+      }
+    }
+  ]
+}

@@ -102,6 +102,40 @@ finding when the change adds a new package, a new export, or a plan-level decisi
 - Where a mathematical law exists, a **property test** should assert it (monotonicity,
   scale invariance, conservation, non-negativity, round-trip). Absence is a finding
   when the law is load-bearing.
+- **Read the GENERATORS, not just the assertions.** A property is only as strong as
+  the inputs it is offered, and a sound assertion over too narrow a domain looks
+  rigorous while testing nothing — it produces no wrong-looking line anywhere. Two
+  checks, both mechanical:
+  - **Generator domain vs. the type's domain.** If the parameter is `number` and the
+    generator is `fc.nat`, every non-integer input is untested. For a *continuous*
+    quantity (units, currency, rates, probabilities) that gap is exactly where
+    floating-point residue breaks an invariant the TSDoc states unconditionally.
+    Flag an unconditional "never negative" / "never below X" claim whose property
+    only ever sees integers.
+  - **Diff the new file's generators against its siblings.** One command, per file,
+    so the outlier is visible rather than inferred:
+    ```bash
+    grep -rlE "fc\.assert" packages/*/src --include="*.test.ts" | sort | while read -r f; do
+      printf '%-56s ' "$f"
+      grep -ohE "fc\.(nat|integer|double|float)\(" "$f" | sort -u | tr '\n' ' '; echo
+    done
+    ```
+    The tell is the **absence of `fc.double`**, not the presence of `fc.nat` — a file
+    listing *only* `fc.nat(` samples nothing fractional anywhere. On the pre-fix M8
+    tree `mrp/grid.test.ts` was the sole such row; its siblings all carried
+    `fc.double(` for at least one argument. Do not read "has `fc.nat`" as the signal:
+    `cost.test.ts` and `wagner-whitin.test.ts` sample *demand* with `fc.nat` too and
+    are simply not exclusive.
+    Use `grep -r --include`, **not** a `src/**/*.test.ts` glob. Not for the reason you
+    might expect: `**` without `shopt -s globstar` behaves as a single `*`, so it still
+    reaches one level down (`mrp/`, `lot-sizing/`) — what it silently drops is every
+    **top-level** `src/*.test.ts`. Repo-wide that is 17 files matched instead of 42,
+    losing all of `classification`, `core/explained.test.ts`, and most of `forecasting`
+    and `inventory`. `**` is shell- and `shopt`-dependent; `grep -r` is neither.
+  (Caught on M8 after a full review had approved the PR but before it merged:
+  `mrp/grid.test.ts` was the repo's only property file sampling *exclusively* with
+  `fc.nat`, and two documented `MrpRow` guarantees were false on plain two-decimal
+  demand. See `self-improve` → hollow-test species (d) for the authoring-side recipe.)
 
 ### 4b. `@example` and TSDoc accuracy
 - Every exported `@example`'s numbers must match **both** what the code returns and
@@ -263,6 +297,24 @@ changes required for approval in one or two sentences.
   manifest, and the umbrella diff was a single added dependency line. Misattribution
   is expensive twice over — it costs the author a wasted investigation and it spends
   the credibility that makes your real findings land.
+- **Before reviewing a PR, confirm it still changes anything.** `gh pr view --json
+  files` and `gh pr diff` both describe the *branch*, not what merging it would
+  apply: they are computed from the merge-base, so a branch whose content already
+  reached `main` by another route still reports a full file list and a
+  `MERGEABLE` status. Reviewing it is pure waste, and any finding you raise is
+  about code that is already merged. One command settles it — diff the actual
+  3-way merge result against main:
+  ```bash
+  git fetch origin
+  git diff --stat origin/main "$(git merge-tree --write-tree origin/main origin/<branch>)"
+  ```
+  Empty output = the PR is a no-op; say so and recommend closing instead of
+  reviewing. (Caught reviewing PR#28: its four commits of skill lessons had
+  already landed in `main` via the squash-merge of PR#29, so `gh` showed
+  +275/−27 across five files and the real merge changed nothing. Note the
+  two-dot `git diff origin/main origin/<branch>` is *also* misleading here — for
+  a branch that predates recent work it shows every later commit as a deletion,
+  which looks alarming and is not what a merge does.)
 - Be fair: distinguish "I'd do it differently" (Minor/Alternative) from "this is
   wrong" (Critical/Major). A convention here (Explained<T>, no `any`, cited tests,
   layering) is **not** a matter of taste — violations are Major, not Minor.

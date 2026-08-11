@@ -61,6 +61,18 @@ Assert invariant laws over generated inputs, not fixed cases:
 - Forecasts **non-negative** for non-negative series where the method guarantees it.
 - `mape` warns on zero-demand series; `mase` stays defined where `mape` isn't.
 
+**Choose the generator's domain from the TYPE's domain.** A property is only as
+strong as the inputs it is offered, and this is decided when you write it, not when
+someone reviews it. A `number` parameter sampled with `fc.nat` leaves every
+fractional input untested — and for a continuous quantity (units, currency, rates)
+that gap is exactly where floating-point residue falsifies an invariant the TSDoc
+states unconditionally. `mrpGrid` shipped that way: sound assertions, integer-only
+generators, and two false "never below the floor" guarantees. Use
+`fc.integer(...).map(n => n / 100)` for realistic two-decimal quantities, or a
+**bounded** `fc.double({ min, max, noNaN: true })`; avoid *unbounded* `fc.double`,
+which spans subnormals and NaN/±Infinity where a 1-ULP disagreement is IEEE-754
+rather than a defect. See `self-improve` → hollow-test species (d).
+
 fast-check is not yet a dependency — add it as a **root devDependency** the first
 time it's needed (`pnpm add -D -w fast-check`), never as a package runtime dep.
 

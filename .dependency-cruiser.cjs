@@ -62,6 +62,10 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: 'node_modules' },
+    // Cruise SOURCE only. `dist/` holds generated JS and per-file .d.ts; cruising
+    // them adds ~67 generated modules of noise and could raise a "violation"
+    // against a build artifact nobody edits. The layering law is about source.
+    exclude: { path: '(^|/)dist/' },
     tsConfig: { fileName: 'tsconfig.base.json' },
     tsPreCompilationDeps: true,
     enhancedResolveOptions: {

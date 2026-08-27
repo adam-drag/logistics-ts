@@ -20,6 +20,7 @@ export * as planning from '@logistics-ts/planning'
 
 export {
   type AbcXyzOptions,
+  type AnalyzerPlanInput,
   InventoryAnalyzer,
   type InventoryAnalyzerInput,
 } from './inventory-analyzer'

@@ -55,6 +55,12 @@ const MAX_NARRATED_ITEMS = 12
  * offending edge). Per-item planning data is optional and defaults to no stock,
  * no receipts, no safety stock, zero lead time, and lot-for-lot.
  *
+ * Pass `periods` (from {@link toMasterSchedule}) to label what each period index
+ * means. It changes no number in the plan, but it is echoed back on the result
+ * and named in the reasoning, so a planned order can be reported against a real
+ * date rather than an index. A wrong-length `periods` throws rather than
+ * mislabelling every order.
+ *
  * @param input - The {@link PlanRequirementsInput} BOM, master schedule and
  *   per-item planning data.
  * @returns An `Explained` {@link MultiLevelPlan}: one {@link ItemPlan} per item
@@ -82,6 +88,21 @@ export function planRequirements(input: PlanRequirementsInput): RequirementsPlan
   // Horizon is set by the master schedule: it is the independent demand the
   // whole plan answers. Every item's grid runs over exactly this many periods.
   const horizon = requireValidRequirements('masterSchedule', masterSchedule)
+
+  // Labels are descriptive only, but a wrong-length set of them would mislabel
+  // every planned order downstream, so a mismatch is an error rather than a
+  // silent truncation.
+  const periods = input.periods
+  if (periods !== undefined) {
+    if (!Array.isArray(periods)) {
+      throw new TypeError(`periods must be an array of labels (got ${typeof periods})`)
+    }
+    if (periods.length !== horizon) {
+      throw new RangeError(
+        `periods has ${periods.length} label(s) but the master schedule spans ${horizon} period(s) — they must match one to one`,
+      )
+    }
+  }
 
   const independent = new Map<string, number[]>()
   for (const entry of masterSchedule) {
@@ -198,7 +219,12 @@ export function planRequirements(input: PlanRequirementsInput): RequirementsPlan
   }
 
   return explain(
-    { items: planned, lowLevelCodes, order: plannedOrder },
+    {
+      items: planned,
+      lowLevelCodes,
+      order: plannedOrder,
+      ...(periods ? { periods: [...periods] } : {}),
+    },
     {
       method: 'mrp-plan-requirements',
       inputs: {
@@ -213,6 +239,11 @@ export function planRequirements(input: PlanRequirementsInput): RequirementsPlan
         `planned ${plannedOrder.length} item(s) over ${horizon} period(s) in ascending low-level code (deepest ${maxLevel}), so every parent was netted before any of its components read it`,
         "each component's gross requirement is quantityPer × its parents' planned order RELEASES — the release, not the receipt, because a parent that must be started in a period needs its components in that period, and netting the parent first means its own stock and lead time are already accounted for",
         'each item was then netted, lot-sized and lead-time offset by the same mrpGrid used for single-item planning — this function composes that, it does not re-implement it',
+        ...(periods && periods.length > 0
+          ? [
+              `period 0 is ${periods[0]} and period ${periods.length - 1} is ${periods[periods.length - 1]}; every row index in this plan refers to that calendar, and every leadTimePeriods was counted in those same buckets`,
+            ]
+          : []),
         ...itemNarration,
       ],
       citations: [

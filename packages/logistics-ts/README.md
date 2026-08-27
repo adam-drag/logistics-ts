@@ -88,11 +88,12 @@ on every export:
 - **[`AGENTS.md`](https://github.com/adam-drag/logistics-ts/blob/main/AGENTS.md)** —
   a "which function for which problem" decision table and the full gotchas list.
 - **Shipped skills** (in this package's `skills/` directory, included in the
-  npm tarball) — [`forecast-and-replenish`](https://github.com/adam-drag/logistics-ts/blob/main/packages/logistics-ts/skills/forecast-and-replenish/SKILL.md)
-  and [`inventory-analysis`](https://github.com/adam-drag/logistics-ts/blob/main/packages/logistics-ts/skills/inventory-analysis/SKILL.md)
+  npm tarball) — [`forecast-and-replenish`](https://github.com/adam-drag/logistics-ts/blob/main/packages/logistics-ts/skills/forecast-and-replenish/SKILL.md),
+  [`inventory-analysis`](https://github.com/adam-drag/logistics-ts/blob/main/packages/logistics-ts/skills/inventory-analysis/SKILL.md)
+  and [`mrp-planning`](https://github.com/adam-drag/logistics-ts/blob/main/packages/logistics-ts/skills/mrp-planning/SKILL.md)
   are end-to-end recipes.
 - **[`examples/`](https://github.com/adam-drag/logistics-ts/tree/main/examples)** —
-  three runnable scripts in the repo.
+  four runnable scripts in the repo.
 
 ## Packages
 

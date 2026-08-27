@@ -16,8 +16,10 @@ npm i @logistics-ts/core
 
 ## What's in it
 
-- **Records**: `DemandRecord`, `StockRecord`, `LeadTimeRecord`, plus
-  `loadDemand`/`loadStock`/`loadLeadTimes` to map arbitrary rows onto them.
+- **Records**: `DemandRecord`, `StockRecord`, `LeadTimeRecord`, `BomLine` and
+  `MasterScheduleRecord`, plus `loadDemand`/`loadStock`/`loadLeadTimes`/
+  `loadBom`/`loadMasterSchedule` to map arbitrary rows onto them — collecting
+  per-row problems as `LoadIssue`s rather than throwing on the first bad row.
 - **`bucketize`**: turns raw demand into a dense, zero-filled per-item time
   series — the shape every forecasting/classification function expects.
 - **Numerics**: `mean`, `standardDeviation`, `variance`,

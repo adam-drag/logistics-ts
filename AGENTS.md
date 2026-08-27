@@ -46,6 +46,8 @@ domain function returns `Explained<T>` (`.value` + `.method` + `.inputs` +
 | Hit a target fill rate (Type-2 service, β) | `fillRate` / `safetyStockForFillRate` / `serviceMetrics` | inventory |
 | Size lots over a demand vector | `lotSize(demand, { rule })` — or a rule directly (`wagnerWhitin` is the optimum) | planning |
 | Net demand against stock and open orders | `mrpGrid({ grossRequirements, onHand, scheduledReceipts, leadTimePeriods })` | planning |
+| Explode a BOM into dependent gross requirements | `explode(bom, demand)` | planning |
+| Run a full multi-level MRP from an MPS + BOM | `planRequirements({ bom, masterSchedule, items })` | planning |
 | Run several analyses over one held dataset | `new InventoryAnalyzer({ demand, stock, leadTimes })` | logistics-ts |
 
 For end-to-end recipes see the shipped skills in

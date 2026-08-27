@@ -10,8 +10,8 @@ family that turns a per-period demand vector into a costed order plan, and the
 ordering in the first place. Every result returns `Explained<T>` — the plan,
 plus the method, inputs, reasoning, and citations behind it.
 
-Scope is deliberate: the grid is **single-item** netting. BOM explosion and
-multi-level MRP are not shipped yet.
+Scope is deliberate: MRP is **infinite-capacity** by definition, so capacity
+planning (CRP), scheduling and routings are not included.
 
 ## Install
 
@@ -136,6 +136,60 @@ period 0, the receipt is kept (the demand is real) and reported both in
 `warnings` and in `plannedOrders` with `pastDue: true` — never silently dropped
 or clamped into period 0. A planner needs to know the plan is infeasible as
 scheduled.
+
+## Multi-level MRP (BOM explosion)
+
+`mrpGrid` plans one item. `planRequirements` plans a whole product structure:
+master schedule in, netted and lot-sized planned orders for every component out.
+
+```ts
+import { planRequirements } from '@logistics-ts/planning'
+
+const plan = planRequirements({
+  bom: [
+    { parentId: 'BIKE', childId: 'WHEEL', quantityPer: 2 },
+    { parentId: 'WHEEL', childId: 'SPOKE', quantityPer: 32 },
+  ],
+  masterSchedule: [{ itemId: 'BIKE', requirements: [0, 0, 0, 0, 100] }],
+  items: {
+    BIKE: { leadTimePeriods: 1 },
+    WHEEL: { leadTimePeriods: 2, onHand: 40 },
+    SPOKE: { leadTimePeriods: 1 },
+  },
+})
+
+plan.value.order                              // ['BIKE', 'WHEEL', 'SPOKE']
+plan.value.items.WHEEL.grossRequirements      // driven by BIKE's RELEASES
+plan.value.items.SPOKE.rows                   // full time-phased record
+```
+
+**Components are driven by their parents' planned order _releases_, not their
+gross requirements.** A parent that must be *started* in period 3 needs its
+components in period 3 — not in period 5 when the finished parent arrives — and
+netting the parent first means its own stock and lead time are already taken
+into account. This is the difference between MRP and a naive explosion.
+
+**Items are processed in low-level-code order**, where a low-level code is the
+*longest* path from an end item. A component used at two different depths is
+therefore planned only after *every* one of its parents, so it is never
+understated. A cyclic BOM is rejected with the offending edge named.
+
+If you only want dependent gross requirements without any netting, `explode(bom,
+demand)` is the standalone gross explosion:
+
+```ts
+import { explode } from '@logistics-ts/planning'
+
+explode(
+  [{ parentId: 'A', childId: 'B', quantityPer: 2 }],
+  [{ itemId: 'A', requirements: [0, 100] }],
+).value.grossRequirements.B // [0, 200]
+```
+
+**Past-due releases are escalated.** If a parent must be released before period 0
+*and* has components beneath it, those components' requirements are
+**understated** — the demand cannot be scheduled at all — and the result says so
+in `warnings`. A component's own plan has no way to report that.
 
 ## In the umbrella package
 

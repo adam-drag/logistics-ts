@@ -67,8 +67,8 @@ Input is validated fail-fast: a non-array horizon, or a hole/`undefined` entry
 inside `grossRequirements` or `scheduledReceipts`, throws naming the field
 rather than being read as zero demand.
 
-Scope is deliberate: this is **single-item** netting. BOM explosion and
-multi-level MRP are not included.
+Scope note: `mrpGrid` is **single-item** netting. Multi-level MRP over a bill
+of materials is `explode` / `planRequirements`, described in its own changeset.
 
 Also exposes the `MrpInput`, `MrpRow`, `MrpGridPlan`, `MrpPlan`, and
 `PlannedOrderSchedule` types alongside the shared `LotPlan` result type and two

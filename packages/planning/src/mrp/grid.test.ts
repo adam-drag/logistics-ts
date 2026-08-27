@@ -17,6 +17,65 @@ describe('mrpGrid', () => {
     { rule: 'least-unit-cost', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
     { rule: 'wagner-whitin', setupCost: 300, holdingCostPerUnitPerPeriod: 2 },
   ]
+  // GOLDEN — a published worked record, not a hand-derived one. This is the
+  // milestone's exit criterion: a textbook time-phased record reproduced row for
+  // row, exercising netting, a safety-stock floor, a scheduled receipt, a
+  // fixed-lot rule and a lead-time offset all at once.
+  //
+  // Source: Gardner, E.S. Jr., "Materials Requirements Planning", chapter 4
+  // (§4.1 "MRP inventory plan (MRP1)"), Figure 4-1 — item x552-6, a drive shaft
+  // for a Houston Oil Tools hoist assembly. Course text for Operations
+  // Management, C.T. Bauer College of Business, University of Houston.
+  // https://www.bauer.uh.edu/egardner/3301H%20Operations%20Management/OM%20Text/4MRP-1.pdf
+  //
+  // Two features of the source worksheet this library deliberately does NOT
+  // model, and how the fixture accounts for them:
+  //
+  //  - "Units allocated" (20 of the 50 beginning inventory are committed to
+  //    future production). We have no allocation concept, so the fixture passes
+  //    the already-net figure the source itself computes: 50 - 20 = 30.
+  //  - "Yield percentage" (98%): the source inflates each planned order RELEASE
+  //    by 1/0.98 to cover scrap, giving 102/306/102/204/102/204. We model no
+  //    yield, so the expectation below is the un-inflated release — i.e. exactly
+  //    the source's planned order RECEIPT row shifted left by the 1-week lead
+  //    time. Every other row is compared verbatim.
+  //
+  // The source's "lot size 100" with "use even multiples of = 1" rounds each net
+  // requirement UP to a whole multiple of 100, which is precisely `foq`.
+  it('reproduces Gardner Figure 4-1 row-for-row (textbook golden)', () => {
+    const grid = mrpGrid({
+      grossRequirements: [50, 100, 220, 175, 0, 190, 120, 120],
+      scheduledReceipts: [75, 0, 0, 0, 0, 0, 0, 0],
+      onHand: 30,
+      safetyStock: 50,
+      leadTimePeriods: 1,
+      lotRule: {
+        rule: 'foq',
+        orderQuantity: 100,
+        // The source's cost cells drive its own EOQ/POQ worksheet, not this
+        // record; `foq` uses only orderQuantity, so these do not affect any
+        // number asserted here.
+        setupCost: 1,
+        holdingCostPerUnitPerPeriod: 1,
+      },
+    })
+    const rows = grid.value.rows
+
+    // Figure 4-1 row 16 — "Net requirements".
+    expect(rows.map((r) => r.netRequirements)).toEqual([0, 95, 215, 90, 0, 180, 100, 120])
+    // Figure 4-1 row 17 — "Planned order receipt".
+    expect(rows.map((r) => r.plannedOrderReceipt)).toEqual([0, 100, 300, 100, 0, 200, 100, 200])
+    // Figure 4-1 row 18 — "Planned order release", less the 98% yield inflation.
+    expect(rows.map((r) => r.plannedOrderRelease)).toEqual([100, 300, 100, 0, 200, 100, 200, 0])
+    // Figure 4-1 row 15 — "Projected inventory at end of week". Note week 2 is
+    // 55, not the 50 safety-stock floor: the 100-unit lot exceeds the 95-unit
+    // net requirement, and the 5-unit surplus is carried rather than discarded.
+    expect(rows.map((r) => r.projectedAvailableBalance)).toEqual([55, 55, 135, 60, 60, 70, 50, 130])
+    // The floor holds in every period, which is what the source's own "Safety
+    // stock messages: None" cell reports.
+    for (const row of rows) expect(row.projectedAvailableBalance).toBeGreaterThanOrEqual(50)
+  })
+
   it('reproduces a full time-phased record row-for-row (hand-derived)', () => {
     // HAND-DERIVED — not a textbook golden. Worked by hand below, following the
     // standard MRP netting recursion (Orlicky; Jacobs & Chase, MRP time-phased

@@ -128,6 +128,33 @@ agree — a wrong explanation is worse than none in an explainable library.
   statement of it and make the public one a copy of the implementation-adjacent
   one, then add the surprising case explicitly rather than leaving the reader to
   infer it. (Caught: PR#40 M9 `bom/types.ts`, Copilot.)
+- **A doctest is not a numeric-correctness test, and the two want OPPOSITE
+  strictness.** `numerics/normal.test.ts` asks "is the maths right?" against a
+  table quoted to 4dp, so `toBeCloseTo` is correct there. `doctest.test.ts` asks
+  "does the `@example` still say what the code prints?" — the documented value is
+  every digit of it, so `toBe` is correct, and loosening to `toBeCloseTo` would
+  let the documented digits rot green, which is the exact failure doctests exist
+  to prevent. Expect a reviewer to flag this as "inconsistent with the numeric
+  tests"; it is a deliberate difference in purpose, and the rationale now lives in
+  the doctest file header so it does not get re-litigated. Be precise about the
+  real risk when defending it: `+ - * /` and `Math.sqrt` are exactly specified by
+  IEEE-754 and cannot drift between engines, while `Math.exp` and `**` are
+  implementation-approximated, so only the latter could shift on a V8 upgrade —
+  and even then the failure is a TRUE positive meaning the published example is
+  now wrong. (Caught: PR#42, Copilot ×2 — assessed as invalid, with the reasoning
+  recorded rather than complied with.)
+- **Choose `@example` inputs whose exact answer is representable — a float
+  artifact in a doc reads as noise.** `squaredCvOfNonZero([0,5,0,0,12,0,3,0])`
+  returns `0.5025000000000001`; documenting that is honest but ugly, and rounding
+  the doc to `0.5025` would make it state something the code does not return —
+  the `smape`/`fillRate` bug class all over again. The fix is neither: pick
+  different inputs. `[0,5,0,0,20,0,35,0,0]` gives exactly `0.5625`, and lengthening
+  the series to 9 periods makes the neighbouring `averageDemandInterval` example
+  exactly `3` instead of `2.6666666666666665`. Search for clean inputs rather than
+  accepting the first ones you tried. Note this applies only to values that are
+  *artifacts*: `standardDeviation` → `3.1622776601683795` is genuinely `sqrt(10)`,
+  and `nelderMead` → `3.000024299792811` is load-bearing convergence residue that
+  must NOT be tidied to `3`. (Caught: PR#42 `stats.ts`, Copilot — valid.)
 - **A warning must state the cause the code actually established, not the most
   common one.** `autoForecast`'s fallback warned "series too short" but the same
   branch fires when a constant series makes every backtest MASE non-finite; track

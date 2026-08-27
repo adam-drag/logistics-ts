@@ -497,7 +497,9 @@ validate structurally, not trust a partial shape.
   `@example`.** Agents read the `.d.ts` directly; a missing `@example` is a missing
   feature, not a missing comment.
 - **Never invent a formula, cutoff, or citation.** They come from `research.md` /
-  `plans/v0.1.md`. If one isn't specified and you can't cite it, stop and say so.
+  the private `plans/` + `research.md` (gitignored, NOT in the repo — ask for the
+  section rather than hunting for the file). If one isn't specified and you can't
+  cite a source you have actually read, stop and say so.
 - **A citation string repeated in multiple places (module header, per-branch
   `citations`, its test assertion) must be typed once and copied, not retyped.**
   `safety-stock.ts`'s file-header `@see` cited "King, P.L. (2011)" but the

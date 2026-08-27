@@ -13,10 +13,20 @@ and `pnpm check` is green. Follow this order.
 
 - Confirm which package the function belongs in and that its imports only reach
   **lower** layers (see `CLAUDE.md` → layering). `core` may import nothing.
-- Read the relevant section of [`plans/v0.1.md`](../../../plans/v0.1.md) for the
-  intended signature and [`research.md`](../../../research.md) for the formula,
-  cutoffs, and citation. **Do not invent** formulas, cutoffs, or citations — they
-  are specified there (King formula, SBC cutoffs 1.32/0.49, MASE, EOQ Harris 1913, …).
+- The plan and research docs (`plans/`, `research.md`) hold the intended
+  signature, the formula, the cutoffs and the citation — but they are **private
+  and gitignored, so they are not in this repo**. Do not go looking for them and
+  do not treat their absence as licence to improvise: **ask** for the section you
+  need.
+- **Do not invent** formulas, cutoffs, or citations. They are specified in those
+  docs (King formula, SBC cutoffs 1.32/0.49, MASE, EOQ Harris 1913, …). If you
+  cannot obtain the specification and cannot cite a source you have actually
+  read, say so and stop — a plausible-looking invented constant is the single
+  worst thing you can ship into a library whose product *is* trustworthy maths.
+- When a published reference is needed and none is to hand, go and get one you
+  can genuinely read (M10 pinned `mrpGrid` to a university course text's worked
+  MRP record this way) rather than reconstructing a "textbook" example from
+  memory and attaching a citation to it.
 
 ## 1. Match the established shape
 

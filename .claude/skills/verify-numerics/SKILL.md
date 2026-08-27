@@ -76,6 +76,50 @@ rather than a defect. See `self-improve` → hollow-test species (d).
 fast-check is not yet a dependency — add it as a **root devDependency** the first
 time it's needed (`pnpm add -D -w fast-check`), never as a package runtime dep.
 
+## Layer 4 — Stochastic results (simulation)
+
+**Everything above assumes a deterministic answer.** Every golden in this repo
+today pins an exact value because the maths is deterministic. A Monte-Carlo
+result — `simulatePolicy` and anything else that consumes a random demand path —
+breaks that assumption, and needs its own discipline. Do not just wrap a
+simulation in `toBeCloseTo` and widen the tolerance until it passes; that is a
+hollow test with extra steps.
+
+**1. Seed everything, and make the seed an input.** The function must take a
+`seed` (or an injected RNG) so a given seed always yields exactly the same run.
+Hand-roll a small PRNG in the package rather than using `Math.random` — it cannot
+be seeded, which makes every failure unreproducible. A seeded run is then pinnable
+with `toBe` like any deterministic result, and *that* is the regression test.
+
+**2. Separate the two questions.** They need different tests:
+  - *"Is the implementation stable?"* — one seed, exact expected output. Fails on
+    any behaviour change. This is your Layer-1 equivalent.
+  - *"Is the estimator right?"* — many seeds, assert the statistic converges to a
+    value you can derive analytically. This is the real correctness claim.
+
+**3. Anchor the statistic to closed-form maths wherever one exists.** This is the
+crucial step and the one that is easy to skip. A simulated `(s,Q)` policy's
+realised fill rate must converge to the analytic `fillRate()` this library
+already ships; simulated average on-hand must converge to the textbook
+`Q/2 + safetyStock`. Asserting a simulation against *itself* proves nothing —
+asserting it against an independently-derived formula is what makes it a golden.
+Where stockpyl's `sim` module covers the same policy, generate a fixture from it
+exactly as `fixtures/generate.py` does for Wagner-Whitin.
+
+**4. Size the tolerance from the standard error, and write the arithmetic down.**
+A Monte-Carlo mean over `n` runs has standard error `σ/√n`; a 4-sigma band gives
+a ~1-in-16,000 flake rate per assertion. Compute the band, put the calculation in
+a comment, and raise `n` if the band is too loose to be meaningful. A tolerance
+picked by trying numbers until CI went green is not a tolerance, it is a
+concealed failure — and the giveaway is the absence of any comment explaining
+where it came from.
+
+**5. State the flake budget out loud.** Count the probabilistic assertions in the
+file and multiply. If the suite has 20 of them at 4 sigma, that is a ~1-in-800
+chance of a red CI run on an innocent commit. Either accept that explicitly in a
+comment or tighten it. Per the standing rule, **a single unreproducible red is
+not a flake until proven** — so a suite that cries wolf is worse than no suite.
+
 ## Edge cases every algorithm test covers
 
 Empty input, single data point, all-zero demand (→ `warnings`, not a throw or NaN

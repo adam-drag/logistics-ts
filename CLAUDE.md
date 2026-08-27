@@ -18,16 +18,39 @@ that **every decision-support result is explainable** — a value plus the metho
 inputs, reasoning, and citations behind it — because the primary consumers are both
 humans and AI agents reading the types and TSDoc directly.
 
-pnpm monorepo. ESM-only, TypeScript strict. **Shipped and merged to `main`:** M0
-scaffold, M1 core, M2 classification, M3 forecasting, M4 inventory, M5 agent
-surface (skills, examples, llms.txt, README, API map), M6 fill-rate / Type-2
-service, M7 `@logistics-ts/planning` lot-sizing family, M8 `mrpGrid` time-phased
-netting. Release automation runs itself (`.github/workflows/release.yml`,
-changesets version-PR bot + npm publish on merge); `logistics-ts@0.1.1` is on npm.
+pnpm monorepo. ESM-only, TypeScript strict.
 
-**Open:** the "Version Packages" PR would publish **0.2.0** (pending changesets:
-`inventory` minor for M6, `planning` minor for M7/M8). Context7 submission is
-still outstanding as far as anything in this repo records.
+**v0.2 is shipped.** All six packages are on npm at **0.2.0** (2026-08-27),
+including `@logistics-ts/planning`, whose first publish this was. M0 scaffold,
+M1 core, M2 classification, M3 forecasting, M4 inventory, M5 agent surface,
+M6 fill-rate / Type-2 service, M7 lot-sizing family, M8 `mrpGrid` netting,
+M9 BOM explosion + `planRequirements`, M10 MRP ingest (`loadBom`,
+`loadMasterSchedule`, `toMasterSchedule`) and agent surface
+(`InventoryAnalyzer.plan()`, the `mrp-planning` skill, `examples/mrp-planning.ts`).
+
+The v0.2 thesis test passes: a clean install from npm can build a multi-level MRP
+plan using only the published surface and the shipped skills.
+
+Release automation runs itself (`.github/workflows/release.yml`, changesets
+version-PR bot + npm publish on merge), with two operational gotchas worth
+knowing before the next release:
+
+- **The version PR needs its CI run approved by hand.** Runs on
+  `changeset-release/main` land as `action_required` (0s, never started) while
+  the branch ruleset requires `check (20|22|24)` to pass — so the PR is
+  unmergeable until someone approves the run. This silently held 0.2.0 for six
+  weeks. Approve via the Actions tab, or `gh api -X POST
+  repos/adam-drag/logistics-ts/actions/runs/<id>/approve`.
+- **`NPM_TOKEN` expiring reads as a 404, not a 401.** A publish failing with
+  `E404 Not Found - PUT` on a package that demonstrably exists is an auth
+  failure; npm returns 404 so it cannot leak package existence. Failed publishes
+  burn no version, so retrying after rotating the token is safe. A token also
+  needs **scope-level** write on `@logistics-ts`, not per-package grants, or a
+  newly added package fails while the existing ones succeed.
+
+**Open:** Context7 is **not** indexed — verified 2026-08-27 against their search
+API, `adam-drag/logistics-ts` returns no hit. (The private v0.2 plan claims the
+v0.1 "publish + Context7" blocker was cleared; only the publish half was.)
 
 ## Session start
 

@@ -1,22 +1,35 @@
 # AGENTS.md
 
 Guidance for AI agents and contributors working in the `logistics-ts` monorepo.
-This file grows with each milestone. Done so far: M0 scaffold, M1 core (data
-model, loaders, time bucketization, numerics, synthetic data), M2 classification
-(ABC, XYZ, FSN, ABC-XYZ matrix, SBC demand pattern), M3 forecasting (MA, SES,
-Holt ±damped, Holt-Winters add/mult, Croston/SBA/TSB, seasonal decomposition,
-rolling-origin backtest, MASE-selected autoForecast, accuracy metrics), M4
-inventory (safety stock family + auto, reorder point/order-up-to-level,
-EOQ/EPQ/quantity discounts, coverage, turnover, issue analyser; umbrella
-`InventoryAnalyzer`), M5 agent surface & release (shipped `skills/`, runnable
-`examples/`, `llms.txt`, consumer README, this API map).
+All six packages are published on npm at **0.2.0**. Done so far: M0 scaffold,
+M1 core (data model, loaders, time bucketization, numerics, synthetic data),
+M2 classification (ABC, XYZ, FSN, ABC-XYZ matrix, SBC demand pattern),
+M3 forecasting (MA, SES, Holt ±damped, Holt-Winters add/mult, Croston/SBA/TSB,
+seasonal decomposition, rolling-origin backtest, MASE-selected autoForecast,
+accuracy metrics), M4 inventory (safety stock family + auto, reorder
+point/order-up-to-level, EOQ/EPQ/quantity discounts, coverage, turnover, issue
+analyser; umbrella `InventoryAnalyzer`), M5 agent surface & release (shipped
+`skills/`, runnable `examples/`, `llms.txt`, consumer README, this API map),
+M6 fill-rate / Type-2 service (`fillRate`, `safetyStockForFillRate`,
+`serviceMetrics`), M7 `@logistics-ts/planning` with the six lot-sizing rules and
+the Wagner-Whitin optimum, M8 `mrpGrid` single-item time-phased netting,
+M9 multi-level MRP (`explode`, `planRequirements`), and M10 MRP ingest
+(`loadBom`, `loadMasterSchedule`, `toMasterSchedule`) plus
+`InventoryAnalyzer.plan()` and the `mrp-planning` skill.
+
+Out of scope, deliberately: capacity planning (CRP), scheduling and routings;
+multi-echelon inventory optimisation; stochastic lot-sizing; persistence and MRP
+run-mode orchestration.
 
 ## What this project is
 
 A modular TypeScript supply-chain intelligence toolkit. Pure, dependency-light
 algorithm packages (safety stock, reorder point, EOQ, ABC/XYZ classification,
 demand forecasting) that applications and other agents build MRP/ERP/WMS/
-inventory features on top of. Roadmap: [`plans/v0.1.md`](plans/v0.1.md).
+inventory features on top of.
+
+Planning docs (`plans/`, `research.md`) are private and gitignored — they are not
+in this repo. If a task needs a decision recorded only there, ask.
 
 ## API map — which function for which problem
 

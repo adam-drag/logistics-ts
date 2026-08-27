@@ -20,6 +20,14 @@ const ISO_DATE =
  * UTC). ISO strings are read by their calendar `YYYY-MM-DD` part (a trailing
  * time part is accepted and ignored); `Date` values are read by their UTC
  * year/month/day. Throws on an unparseable value.
+ *
+ * @example
+ * ```ts
+ * toEpochDay('1970-01-01')            // 0
+ * toEpochDay('2026-03-02')            // 20514
+ * toEpochDay('2026-03-02T09:30:00Z')  // 20514 — the time part is ignored
+ * toEpochDay(new Date(Date.UTC(2026, 2, 2))) // 20514
+ * ```
  */
 export function toEpochDay(input: DateInput): number {
   if (input instanceof Date) {
@@ -46,6 +54,12 @@ export function toEpochDay(input: DateInput): number {
  * Converts an epoch day back to a UTC-midnight `Date`. An epoch day is an
  * integer count of days; a non-integer input is rejected so the midnight
  * contract holds.
+ *
+ * @example
+ * ```ts
+ * fromEpochDay(20514).toISOString() // '2026-03-02T00:00:00.000Z'
+ * fromEpochDay(20514.5)             // throws RangeError
+ * ```
  */
 export function fromEpochDay(epochDay: number): Date {
   if (!Number.isInteger(epochDay)) {
@@ -54,12 +68,31 @@ export function fromEpochDay(epochDay: number): Date {
   return new Date(epochDay * MS_PER_DAY)
 }
 
-/** Formats an epoch day as an ISO `YYYY-MM-DD` calendar date. */
+/**
+ * Formats an epoch day as an ISO `YYYY-MM-DD` calendar date.
+ *
+ * @example
+ * ```ts
+ * formatEpochDay(20514) // '2026-03-02'
+ * formatEpochDay(0)     // '1970-01-01'
+ * ```
+ */
 export function formatEpochDay(epochDay: number): string {
   return fromEpochDay(epochDay).toISOString().slice(0, 10)
 }
 
-/** ISO weekday of an epoch day, Monday = 0 … Sunday = 6. */
+/**
+ * ISO weekday of an epoch day, Monday = 0 … Sunday = 6.
+ *
+ * Note the zero-based Monday convention, which is what week bucketing needs —
+ * it is NOT the 1..7 of ISO-8601 proper, nor `Date.getUTCDay`'s Sunday = 0.
+ *
+ * @example
+ * ```ts
+ * isoWeekday(toEpochDay('2026-03-02')) // 0 — a Monday
+ * isoWeekday(toEpochDay('2026-03-08')) // 6 — the Sunday that ends that week
+ * ```
+ */
 export function isoWeekday(epochDay: number): number {
   // 1970-01-01 is a Thursday (JS getUTCDay = 4); normalise so Monday = 0.
   return ((((epochDay % 7) + 4) % 7) + 6) % 7

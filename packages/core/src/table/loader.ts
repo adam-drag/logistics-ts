@@ -196,7 +196,31 @@ function requireColumns(reader: RowReader, columns: ReadonlyArray<string | undef
 
 // --- Loaders --------------------------------------------------------------
 
-/** Loads and validates {@link DemandRecord}s from tabular input. */
+/**
+ * Loads and validates {@link DemandRecord}s from tabular input.
+ *
+ * @param input - Tabular input ({@link TableInput}): rows of objects, a column
+ *   table, or anything {@link normalizeInput} accepts.
+ * @param mapping - Source column names per field. Defaults to `itemId`, `date`,
+ *   `quantity`, `locationId`, `unitPrice`.
+ * @param options - See {@link LoadOptions}.
+ * @returns The valid {@link DemandRecord}s plus any collected {@link LoadIssue}s.
+ * @example
+ * ```ts
+ * const { records, issues } = loadDemand(
+ *   [
+ *     { sku: 'A', when: '2026-01-05', qty: '10' }, // numeric strings are coerced
+ *     { sku: 'A', when: 'oops', qty: '3' },
+ *   ],
+ *   { itemId: 'sku', date: 'when', quantity: 'qty' },
+ * )
+ *
+ * records // [{ itemId: 'A', date: '2026-01-05', quantity: 10 }]
+ * issues
+ * // [{ row: 1, column: 'when',
+ * //    problem: 'expected a calendar date (Date or ISO YYYY-MM-DD)' }]
+ * ```
+ */
 export function loadDemand(
   input: TableInput,
   mapping: DemandColumnMap = {},
@@ -249,7 +273,22 @@ export function loadDemand(
   return { records, issues }
 }
 
-/** Loads and validates {@link StockRecord}s from tabular input. */
+/**
+ * Loads and validates {@link StockRecord}s from tabular input.
+ *
+ * @param input - Tabular input ({@link TableInput}).
+ * @param mapping - Source column names per field. Defaults to `itemId`,
+ *   `quantity`, `locationId`, `unitCost`, `timestamp`.
+ * @param options - See {@link LoadOptions}.
+ * @returns The valid {@link StockRecord}s plus any collected {@link LoadIssue}s.
+ * @example
+ * ```ts
+ * const { records, issues } = loadStock([{ itemId: 'A', quantity: 120, unitCost: 4.5 }])
+ *
+ * records // [{ itemId: 'A', quantity: 120, unitCost: 4.5 }]
+ * issues  // []
+ * ```
+ */
 export function loadStock(
   input: TableInput,
   mapping: StockColumnMap = {},
@@ -299,7 +338,28 @@ export function loadStock(
   return { records, issues }
 }
 
-/** Loads and validates {@link LeadTimeRecord}s from tabular input. */
+/**
+ * Loads and validates {@link LeadTimeRecord}s from tabular input.
+ *
+ * One record per observed receipt — do **not** pre-average them. Lead-time
+ * variability is estimated from the spread across records, so collapsing them to
+ * a mean discards exactly the information safety stock needs.
+ *
+ * @param input - Tabular input ({@link TableInput}).
+ * @param mapping - Source column names per field. Defaults to `itemId`,
+ *   `leadTimeDays`, `date`.
+ * @param options - See {@link LoadOptions}.
+ * @returns The valid {@link LeadTimeRecord}s plus any {@link LoadIssue}s.
+ * @example
+ * ```ts
+ * const { records } = loadLeadTimes([
+ *   { itemId: 'A', leadTimeDays: 12 },
+ *   { itemId: 'A', leadTimeDays: 16 },
+ * ])
+ *
+ * records // [{ itemId: 'A', leadTimeDays: 12 }, { itemId: 'A', leadTimeDays: 16 }]
+ * ```
+ */
 export function loadLeadTimes(
   input: TableInput,
   mapping: LeadTimeColumnMap = {},

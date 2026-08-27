@@ -4,7 +4,15 @@
  * biased (n) form where the data is the whole population.
  */
 
-/** Arithmetic mean. Returns `NaN` for an empty input. */
+/**
+ * Arithmetic mean. Returns `NaN` for an empty input.
+ *
+ * @example
+ * ```ts
+ * mean([10, 12, 8, 14, 6]) // 10
+ * mean([])                 // NaN
+ * ```
+ */
 export function mean(values: readonly number[]): number {
   if (values.length === 0) return Number.NaN
   let sum = 0
@@ -16,6 +24,12 @@ export function mean(values: readonly number[]): number {
  * Variance. Sample (n − 1) by default; population (n) when `population` is true.
  * Returns `NaN` for the sample form given fewer than two values, and for the
  * population form given an empty input.
+ *
+ * @example
+ * ```ts
+ * variance([10, 12, 8, 14, 6])       // 10 — sample, (n - 1) denominator
+ * variance([10, 12, 8, 14, 6], true) //  8 — population, (n) denominator
+ * ```
  */
 export function variance(values: readonly number[], population = false): number {
   const n = values.length
@@ -29,7 +43,14 @@ export function variance(values: readonly number[], population = false): number 
   return sumSq / (population ? n : n - 1)
 }
 
-/** Standard deviation — the square root of {@link variance}. */
+/**
+ * Standard deviation — the square root of {@link variance}.
+ *
+ * @example
+ * ```ts
+ * standardDeviation([10, 12, 8, 14, 6]) // 3.1622776601683795 = sqrt(10)
+ * ```
+ */
 export function standardDeviation(values: readonly number[], population = false): number {
   return Math.sqrt(variance(values, population))
 }
@@ -37,6 +58,11 @@ export function standardDeviation(values: readonly number[], population = false)
 /**
  * Coefficient of variation: standard deviation divided by the mean. A unitless
  * measure of relative dispersion. Returns `NaN` when the mean is zero.
+ *
+ * @example
+ * ```ts
+ * coefficientOfVariation([10, 12, 8, 14, 6]) // 0.31622776601683794 (sd 3.162 / mean 10)
+ * ```
  */
 export function coefficientOfVariation(values: readonly number[], population = false): number {
   const m = mean(values)
@@ -54,6 +80,11 @@ export function coefficientOfVariation(values: readonly number[], population = f
  *
  * @see Syntetos, A.A., Boylan, J.E. & Croston, J.D. (2005). On the categorization
  *   of demand patterns. Journal of the Operational Research Society, 56(5).
+ * @example
+ * ```ts
+ * // Only the sizes 5, 12 and 3 are used; the zero periods are ignored.
+ * squaredCvOfNonZero([0, 5, 0, 0, 12, 0, 3, 0]) // 0.5025000000000001
+ * ```
  */
 export function squaredCvOfNonZero(values: readonly number[]): number {
   const nonZero = values.filter((v) => v !== 0)
@@ -71,6 +102,11 @@ export function squaredCvOfNonZero(values: readonly number[]): number {
  *
  * @param series - Demand per period, including zero periods.
  * @see Syntetos, Boylan & Croston (2005).
+ * @example
+ * ```ts
+ * // 8 periods, 3 of them with demand.
+ * averageDemandInterval([0, 5, 0, 0, 12, 0, 3, 0]) // 2.6666666666666665 = 8 / 3
+ * ```
  */
 export function averageDemandInterval(series: readonly number[]): number {
   if (series.length === 0) return Number.NaN

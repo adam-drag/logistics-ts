@@ -35,6 +35,19 @@ export interface XyzClassification {
  * true period-to-period variability.
  *
  * An item with no demand (undefined CV) is classified `Z` with a warning.
+ *
+ * @example
+ * ```ts
+ * const series = bucketize(demand, 'week')
+ * xyz(series).value
+ * // [
+ * //   { itemId: 'SPIKY',  class: 'Z', coefficientOfVariation: 1.5511819670374223 },
+ * //   { itemId: 'STEADY', class: 'X', coefficientOfVariation: 0.1 },
+ * // ]
+ *
+ * // Cutoffs are convention — tighten them for a low-variability catalogue.
+ * xyz(series, { cutoffs: [0.25, 0.75] })
+ * ```
  */
 export function xyz(
   series: readonly DemandSeries[],

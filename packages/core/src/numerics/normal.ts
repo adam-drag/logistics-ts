@@ -3,7 +3,15 @@
  * conversions (safety stock) and the unit normal loss integral (fill-rate).
  */
 
-/** Standard-normal probability density function, φ(z). */
+/**
+ * Standard-normal probability density function, φ(z).
+ *
+ * @example
+ * ```ts
+ * normalPdf(0) // 0.3989422804014327 = 1 / sqrt(2π)
+ * normalPdf(1) // 0.24197072451914337
+ * ```
+ */
 export function normalPdf(z: number): number {
   return Math.exp(-0.5 * z * z) / Math.sqrt(2 * Math.PI)
 }
@@ -32,6 +40,13 @@ function erf(x: number): number {
  * underlying erf approximation — absolute error ≈ 1.5 × 10⁻⁷, coarser than
  * {@link inverseNormalCdf}'s 1.15 × 10⁻⁹ and inherited by
  * {@link normalLossFunction}.
+ *
+ * @example
+ * ```ts
+ * normalCdf(0)     // 0.5
+ * normalCdf(1.645) // 0.9500151083946706 — the 95% service-level z
+ * normalCdf(1.96)  // 0.9750021738917761
+ * ```
  */
 export function normalCdf(z: number): number {
   return 0.5 * (1 + erf(z / Math.SQRT2))
@@ -109,6 +124,16 @@ export function inverseNormalCdf(p: number): number {
  *
  * @see Silver, E.A., Pyke, D.F. & Thomas, D.J. (2017). Inventory and Production
  *   Management in Supply Chains, 4th ed.
+ * @example
+ * ```ts
+ * // Matches the standard published loss-function table to 4 decimal places.
+ * normalLossFunction(0) // 0.3989422804014327  (table: 0.3989)
+ * normalLossFunction(1) // 0.08331546068677964 (table: 0.0833)
+ * normalLossFunction(2) // 0.008490840738675384 (table: 0.0085)
+ *
+ * // Expected units short per cycle = sigma over lead time x E(z).
+ * const expectedShortfall = 50 * normalLossFunction(1) // 4.165773034338982
+ * ```
  */
 export function normalLossFunction(z: number): number {
   return normalPdf(z) - z * (1 - normalCdf(z))

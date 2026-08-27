@@ -25,6 +25,7 @@
  */
 export { type Explained, explain } from '@logistics-ts/core'
 export { explode } from './bom/explode'
+export { type MasterScheduleSeries, toMasterSchedule } from './bom/master-schedule'
 export { planRequirements } from './bom/plan-requirements'
 export type {
   Explosion,

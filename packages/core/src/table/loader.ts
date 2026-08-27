@@ -14,7 +14,13 @@
  * non-numeric unit price) keeps the row and omits the field — but is still
  * recorded as an issue. A genuinely absent optional cell is not an issue.
  */
-import type { DemandRecord, LeadTimeRecord, StockRecord } from '../model'
+import type {
+  BomLine,
+  DemandRecord,
+  LeadTimeRecord,
+  MasterScheduleRecord,
+  StockRecord,
+} from '../model'
 import { toEpochDay } from '../time/epoch-day'
 import { normalizeInput, type RowReader, type TableInput } from './table-source'
 
@@ -62,6 +68,20 @@ export interface LeadTimeColumnMap {
   itemId?: string
   leadTimeDays?: string
   date?: string
+}
+
+/** Maps canonical {@link BomLine} fields to source column names. */
+export interface BomColumnMap {
+  parentId?: string
+  childId?: string
+  quantityPer?: string
+}
+
+/** Maps canonical {@link MasterScheduleRecord} fields to source column names. */
+export interface MasterScheduleColumnMap {
+  itemId?: string
+  date?: string
+  quantity?: string
 }
 
 // --- Cell coercion --------------------------------------------------------
@@ -316,6 +336,145 @@ export function loadLeadTimes(
     const date = optionalDate(reader.getCell(row, col.date), col.date, ctx)
     if (date !== undefined) record.date = date
     records.push(record)
+  }
+
+  return { records, issues }
+}
+
+/**
+ * Loads and validates {@link BomLine}s — the edge list of a product-structure
+ * DAG — from tabular input.
+ *
+ * A row whose `parentId` equals its `childId` is a data problem, not a
+ * configuration one, so it is recorded as an issue and the row is skipped,
+ * exactly like a negative quantity. That keeps the degenerate self-loop out of
+ * the returned BOM rather than deferring it to an exception from `explode` /
+ * `planRequirements` (in `@logistics-ts/planning`) once the whole file is
+ * loaded — a 10,000-line BOM should report every bad row in one pass.
+ *
+ * This loader does **not** check the BOM for longer cycles: a cycle is a
+ * property of the edge set as a whole, not of any one row, and detecting it is
+ * part of the levelling pass in the planning package.
+ *
+ * @param input - Tabular input ({@link TableInput}): rows of objects, a column
+ *   table, or anything {@link normalizeInput} accepts.
+ * @param mapping - Source column names per field. Defaults to `parentId`,
+ *   `childId`, `quantityPer`.
+ * @param options - See {@link LoadOptions}.
+ * @returns The valid {@link BomLine}s plus any collected {@link LoadIssue}s.
+ * @example
+ * ```ts
+ * const { records, issues } = loadBom([
+ *   { parent: 'BIKE', child: 'WHEEL', per: 2 },
+ *   { parent: 'WHEEL', child: 'SPOKE', per: 32 },
+ * ], { parentId: 'parent', childId: 'child', quantityPer: 'per' })
+ *
+ * records // [{ parentId: 'BIKE', childId: 'WHEEL', quantityPer: 2 }, …]
+ * issues  // []
+ * ```
+ */
+export function loadBom(
+  input: TableInput,
+  mapping: BomColumnMap = {},
+  options: LoadOptions = {},
+): LoadResult<BomLine> {
+  const reader = normalizeInput(input)
+  const col = {
+    parentId: mapping.parentId ?? 'parentId',
+    childId: mapping.childId ?? 'childId',
+    quantityPer: mapping.quantityPer ?? 'quantityPer',
+  }
+  requireColumns(reader, [col.parentId, col.childId, col.quantityPer])
+
+  const throwOnIssue = options.throwOnIssue ?? false
+  const records: BomLine[] = []
+  const issues: LoadIssue[] = []
+
+  for (let row = 0; row < reader.numRows; row++) {
+    const ctx: FieldContext = { row, issues, throwOnIssue }
+
+    const parentId = toStringCell(reader.getCell(row, col.parentId))
+    if (parentId === null) {
+      raise(ctx, col.parentId, 'expected a non-empty item id')
+      continue
+    }
+    const childId = toStringCell(reader.getCell(row, col.childId))
+    if (childId === null) {
+      raise(ctx, col.childId, 'expected a non-empty item id')
+      continue
+    }
+    if (parentId === childId) {
+      raise(ctx, col.childId, `'${childId}' cannot be a component of itself`)
+      continue
+    }
+    const quantityPer = requireQuantity(reader.getCell(row, col.quantityPer), col.quantityPer, ctx)
+    if (quantityPer === undefined) continue
+
+    records.push({ parentId, childId, quantityPer })
+  }
+
+  return { records, issues }
+}
+
+/**
+ * Loads and validates {@link MasterScheduleRecord}s — dated independent demand
+ * for end items — from tabular input.
+ *
+ * The records are **dated**, matching every other record type in this package.
+ * A multi-level MRP run needs them as period-indexed series instead; convert
+ * them with `toMasterSchedule` (in `@logistics-ts/planning`), which buckets
+ * every item onto one shared calendar so that period 0 means the same date for
+ * every item in the plan.
+ *
+ * @param input - Tabular input ({@link TableInput}).
+ * @param mapping - Source column names per field. Defaults to `itemId`, `date`,
+ *   `quantity`.
+ * @param options - See {@link LoadOptions}.
+ * @returns The valid {@link MasterScheduleRecord}s plus any {@link LoadIssue}s.
+ * @example
+ * ```ts
+ * const { records } = loadMasterSchedule([
+ *   { sku: 'BIKE', due: '2026-03-02', qty: 100 },
+ *   { sku: 'BIKE', due: '2026-03-09', qty: 150 },
+ * ], { itemId: 'sku', date: 'due', quantity: 'qty' })
+ *
+ * records.length // 2
+ * ```
+ */
+export function loadMasterSchedule(
+  input: TableInput,
+  mapping: MasterScheduleColumnMap = {},
+  options: LoadOptions = {},
+): LoadResult<MasterScheduleRecord> {
+  const reader = normalizeInput(input)
+  const col = {
+    itemId: mapping.itemId ?? 'itemId',
+    date: mapping.date ?? 'date',
+    quantity: mapping.quantity ?? 'quantity',
+  }
+  requireColumns(reader, [col.itemId, col.date, col.quantity])
+
+  const throwOnIssue = options.throwOnIssue ?? false
+  const records: MasterScheduleRecord[] = []
+  const issues: LoadIssue[] = []
+
+  for (let row = 0; row < reader.numRows; row++) {
+    const ctx: FieldContext = { row, issues, throwOnIssue }
+
+    const itemId = toStringCell(reader.getCell(row, col.itemId))
+    if (itemId === null) {
+      raise(ctx, col.itemId, 'expected a non-empty item id')
+      continue
+    }
+    const date = toDateCell(reader.getCell(row, col.date))
+    if (date === null) {
+      raise(ctx, col.date, 'expected a calendar date (Date or ISO YYYY-MM-DD)')
+      continue
+    }
+    const quantity = requireQuantity(reader.getCell(row, col.quantity), col.quantity, ctx)
+    if (quantity === undefined) continue
+
+    records.push({ itemId, date, quantity })
   }
 
   return { records, issues }

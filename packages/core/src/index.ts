@@ -47,14 +47,18 @@ export {
   generateExampleData,
 } from './synthetic/generate'
 export {
+  type BomColumnMap,
   type DemandColumnMap,
   type LeadTimeColumnMap,
   type LoadIssue,
   type LoadOptions,
   type LoadResult,
+  loadBom,
   loadDemand,
   loadLeadTimes,
+  loadMasterSchedule,
   loadStock,
+  type MasterScheduleColumnMap,
   type StockColumnMap,
 } from './table/loader'
 // Tabular input + loaders

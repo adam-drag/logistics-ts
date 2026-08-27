@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadDemand, loadLeadTimes, loadStock } from './loader'
+import { loadBom, loadDemand, loadLeadTimes, loadMasterSchedule, loadStock } from './loader'
 import type { TableSource } from './table-source'
 
 describe('loadDemand — input shapes', () => {
@@ -189,5 +189,142 @@ describe('optional-column validation', () => {
     const { records, issues } = loadDemand([{ itemId: 'A', date: '2026-01-01', quantity: 1 }])
     expect(records).toHaveLength(1)
     expect(issues).toEqual([])
+  })
+})
+
+describe('loadBom', () => {
+  it('asserts the documented @example outputs exactly (doctest)', () => {
+    const { records, issues } = loadBom(
+      [
+        { parent: 'BIKE', child: 'WHEEL', per: 2 },
+        { parent: 'WHEEL', child: 'SPOKE', per: 32 },
+      ],
+      { parentId: 'parent', childId: 'child', quantityPer: 'per' },
+    )
+    expect(records).toEqual([
+      { parentId: 'BIKE', childId: 'WHEEL', quantityPer: 2 },
+      { parentId: 'WHEEL', childId: 'SPOKE', quantityPer: 32 },
+    ])
+    expect(issues).toEqual([])
+  })
+
+  it('reads default column names and coerces a CSV-style quantityPer', () => {
+    const { records, issues } = loadBom([{ parentId: 'A', childId: 'B', quantityPer: '2.5' }])
+    expect(records).toEqual([{ parentId: 'A', childId: 'B', quantityPer: 2.5 }])
+    expect(issues).toEqual([])
+  })
+
+  // A self-loop is a ROW problem, so it is collected and skipped like any other
+  // bad row — not thrown. The point is that one pass over a large BOM reports
+  // every bad row, instead of the first self-loop aborting the whole load.
+  it('collects a self-referential row as an issue, skips it, and keeps the good rows', () => {
+    const { records, issues } = loadBom([
+      { parentId: 'A', childId: 'B', quantityPer: 1 },
+      { parentId: 'C', childId: 'C', quantityPer: 1 },
+      { parentId: 'B', childId: 'D', quantityPer: 3 },
+    ])
+    expect(records).toEqual([
+      { parentId: 'A', childId: 'B', quantityPer: 1 },
+      { parentId: 'B', childId: 'D', quantityPer: 3 },
+    ])
+    expect(issues).toEqual([
+      { row: 1, column: 'childId', problem: "'C' cannot be a component of itself" },
+    ])
+  })
+
+  it('reports every bad row in one pass rather than stopping at the first', () => {
+    const { records, issues } = loadBom([
+      { parentId: 'A', childId: 'B', quantityPer: -1 },
+      { parentId: '', childId: 'C', quantityPer: 1 },
+      { parentId: 'A', childId: 'D', quantityPer: 'nope' },
+      { parentId: 'A', childId: 'E', quantityPer: 4 },
+    ])
+    expect(records).toEqual([{ parentId: 'A', childId: 'E', quantityPer: 4 }])
+    expect(issues.map((i) => [i.row, i.column])).toEqual([
+      [0, 'quantityPer'],
+      [1, 'parentId'],
+      [2, 'quantityPer'],
+    ])
+  })
+
+  // A cycle is a property of the edge SET, not of any row, so the loader must
+  // not attempt it — it is the levelling pass in `planning` that detects one.
+  it('does not attempt to detect a multi-row cycle', () => {
+    const { records, issues } = loadBom([
+      { parentId: 'A', childId: 'B', quantityPer: 1 },
+      { parentId: 'B', childId: 'A', quantityPer: 1 },
+    ])
+    expect(records).toHaveLength(2)
+    expect(issues).toEqual([])
+  })
+
+  it('throws on a missing required column (structural error)', () => {
+    expect(() => loadBom([{ parentId: 'A', childId: 'B' }])).toThrow(/missing expected column/)
+  })
+
+  it('throws on the first issue when throwOnIssue is set', () => {
+    expect(() =>
+      loadBom([{ parentId: 'A', childId: 'A', quantityPer: 1 }], {}, { throwOnIssue: true }),
+    ).toThrow(/component of itself/)
+  })
+
+  it('loads zero records from empty input instead of throwing', () => {
+    expect(loadBom([])).toEqual({ records: [], issues: [] })
+  })
+})
+
+describe('loadMasterSchedule', () => {
+  it('asserts the documented @example outputs exactly (doctest)', () => {
+    const { records } = loadMasterSchedule(
+      [
+        { sku: 'BIKE', due: '2026-03-02', qty: 100 },
+        { sku: 'BIKE', due: '2026-03-09', qty: 150 },
+      ],
+      { itemId: 'sku', date: 'due', quantity: 'qty' },
+    )
+    expect(records).toHaveLength(2)
+  })
+
+  it('reads default column names', () => {
+    const { records, issues } = loadMasterSchedule([
+      { itemId: 'A', date: '2026-01-05', quantity: 10 },
+    ])
+    expect(records).toEqual([{ itemId: 'A', date: '2026-01-05', quantity: 10 }])
+    expect(issues).toEqual([])
+  })
+
+  it('keeps repeated item/date rows separate rather than merging them', () => {
+    // Merging is the bucketiser's job, and it sums by period. Doing it here too
+    // would double-count once the records are bucketed.
+    const { records } = loadMasterSchedule([
+      { itemId: 'A', date: '2026-01-05', quantity: 10 },
+      { itemId: 'A', date: '2026-01-05', quantity: 4 },
+    ])
+    expect(records).toHaveLength(2)
+  })
+
+  it('collects issues for a bad date, a negative quantity and an empty item id', () => {
+    const { records, issues } = loadMasterSchedule([
+      { itemId: 'A', date: 'not-a-date', quantity: 1 },
+      { itemId: 'B', date: '2026-01-05', quantity: -3 },
+      { itemId: '', date: '2026-01-05', quantity: 1 },
+      { itemId: 'C', date: '2026-01-05', quantity: 7 },
+    ])
+    expect(records).toEqual([{ itemId: 'C', date: '2026-01-05', quantity: 7 }])
+    expect(issues.map((i) => [i.row, i.column])).toEqual([
+      [0, 'date'],
+      [1, 'quantity'],
+      [2, 'itemId'],
+    ])
+  })
+
+  it('throws on a missing required column (structural error)', () => {
+    expect(() => loadMasterSchedule([{ itemId: 'A', date: '2026-01-05' }])).toThrow(
+      /missing expected column/,
+    )
+  })
+
+  it('loads zero records from empty input instead of throwing', () => {
+    expect(loadMasterSchedule([])).toEqual({ records: [], issues: [] })
   })
 })

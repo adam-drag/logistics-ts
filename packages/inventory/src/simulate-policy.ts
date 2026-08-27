@@ -78,8 +78,24 @@ export interface SimulatePolicyInput {
   initialOnHand?: number
   /**
    * Replenishment lead time in **periods**, never days. An order placed in
-   * period `t` arrives at the start of period `t + leadTimePeriods`. Defaults
-   * to `0` (same-period delivery).
+   * period `t` arrives at the start of period `t + leadTimePeriods`. Must be a
+   * positive integer; defaults to `1`.
+   *
+   * Note this is a stricter domain than the `leadTimePeriods` of `mrpGrid` and
+   * `planRequirements` in `@logistics-ts/planning`, where `0` is valid and means
+   * a planned order is released in the period it is needed. Those net and offset
+   * a requirements plan; this one walks a live order pipeline, and the two
+   * conventions do not transfer.
+   *
+   * `0` is rejected rather than supported. Ordering happens *after* demand is
+   * met (step 3 of the period), so an order placed in period `t` cannot serve
+   * demand before period `t + 1` however short the lead time is — a zero lead
+   * time would deliver exactly the same service as `1` and differ only in which
+   * period the arrival is booked against. Offering two spellings of one
+   * behaviour invites the caller to think they modelled instant replenishment
+   * when they did not. If you want an order to serve the same period's demand,
+   * that is a different period convention (review before demand), not a lead
+   * time of zero.
    */
   leadTimePeriods?: number
   /**
@@ -188,7 +204,7 @@ export interface PolicyPerformance {
 export function simulatePolicy(input: SimulatePolicyInput): Explained<PolicyPerformance> {
   const { demand, policy } = input
   const initialOnHand = input.initialOnHand ?? 0
-  const leadTimePeriods = input.leadTimePeriods ?? 0
+  const leadTimePeriods = input.leadTimePeriods ?? 1
   const unmetDemand = input.unmetDemand ?? 'backorder'
 
   if (!Array.isArray(demand)) {
@@ -205,9 +221,12 @@ export function simulatePolicy(input: SimulatePolicyInput): Explained<PolicyPerf
   if (initialOnHand < 0) {
     throw new Error(`simulatePolicy: initialOnHand must not be negative (got ${initialOnHand})`)
   }
-  if (!Number.isInteger(leadTimePeriods) || leadTimePeriods < 0) {
+  if (!Number.isInteger(leadTimePeriods) || leadTimePeriods < 1) {
     throw new Error(
-      `simulatePolicy: leadTimePeriods must be a non-negative integer number of periods (got ${leadTimePeriods})`,
+      `simulatePolicy: leadTimePeriods must be a positive integer number of periods (got ${leadTimePeriods})` +
+        (leadTimePeriods === 0
+          ? ' — orders are placed after demand is met, so a lead time of 0 would deliver exactly the same service as 1; use 1'
+          : ''),
     )
   }
   if (unmetDemand !== 'backorder' && unmetDemand !== 'lost-sales') {

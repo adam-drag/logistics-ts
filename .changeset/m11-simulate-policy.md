@@ -20,6 +20,13 @@ Every policy decides on the **inventory position** (on-hand + on-order −
 backorders), never on-hand alone — reordering on on-hand is the classic
 simulation bug, and re-orders every period until the first delivery lands.
 
+`leadTimePeriods` must be a positive integer and defaults to `1`. A lead time of
+`0` is rejected on purpose: ordering happens after demand is met, so an order
+placed in period `t` cannot serve demand before `t + 1` however short the lead
+time, and `0` would be a second spelling of `1`. This is a stricter domain than
+the `leadTimePeriods` of `mrpGrid` / `planRequirements` in
+`@logistics-ts/planning`, where `0` is valid.
+
 Unmet demand is backordered by default, or can be treated as lost sales. Lost
 sales emits a warning that the realised fill rate is then **not** comparable to
 the analytic `fillRate()`, which assumes backordering.

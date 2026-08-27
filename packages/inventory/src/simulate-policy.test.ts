@@ -333,7 +333,7 @@ describe('simulatePolicy', () => {
       demand: demandArb,
       policy: policyArb,
       initialOnHand: fc.integer({ min: 0, max: 5000 }).map((n) => n / 100),
-      leadTimePeriods: fc.integer({ min: 0, max: 6 }),
+      leadTimePeriods: fc.integer({ min: 1, max: 6 }),
       unmetDemand: fc.constantFrom('backorder' as const, 'lost-sales' as const),
     })
 
@@ -408,13 +408,36 @@ describe('simulatePolicy', () => {
       )
     })
 
+    // Added after a Copilot review of PR #44 found that leadTimePeriods: 0 (then
+    // the documented default) scheduled arrivals into the CURRENT period, whose
+    // receive step had already run — so those orders were never received and sat
+    // in on-order forever. Every property above stayed green: they all reason
+    // about demand, on-hand and backorders, and stranded on-order stock violates
+    // none of them. This one closes that blind spot by asserting the order
+    // pipeline itself, and it fails on the original bug at every lead time.
+    it('receives every order whose lead time lands inside the horizon', () => {
+      fc.assert(
+        fc.property(setupArb, (setup) => {
+          const sim = simulatePolicy(setup)
+          const horizon = sim.value.rows.length
+          const lead = setup.leadTimePeriods
+          const dueInside = sim.value.rows
+            .filter((r) => r.period + lead < horizon)
+            .reduce((sum, r) => sum + r.ordered, 0)
+          const received = sim.value.rows.reduce((sum, r) => sum + r.received, 0)
+          expect(received).toBeCloseTo(dueInside, 9)
+        }),
+        { numRuns: 300 },
+      )
+    })
+
     it('is monotone in the reorder point: a bigger buffer never fills less', () => {
       fc.assert(
         fc.property(
           demandArb,
           fc.integer({ min: 1, max: 3000 }).map((n) => n / 100),
           fc.integer({ min: 0, max: 2000 }).map((n) => n / 100),
-          fc.integer({ min: 0, max: 4 }),
+          fc.integer({ min: 1, max: 4 }),
           (demand, orderQuantity, extra, leadTimePeriods) => {
             const base = simulatePolicy({
               demand,
@@ -475,6 +498,15 @@ describe('simulatePolicy', () => {
       )
       expect(() => simulatePolicy({ demand: [1], policy: ok, leadTimePeriods: 1.5 })).toThrow(
         /leadTimePeriods/,
+      )
+      expect(() => simulatePolicy({ demand: [1], policy: ok, leadTimePeriods: -1 })).toThrow(
+        /leadTimePeriods/,
+      )
+      // 0 is rejected deliberately, not overlooked: ordering happens after demand
+      // is met, so a 0-period lead time delivers the same service as 1 and would
+      // only be a second spelling of it. The message has to say so.
+      expect(() => simulatePolicy({ demand: [1], policy: ok, leadTimePeriods: 0 })).toThrow(
+        /leadTimePeriods.*positive integer.*same service as 1/s,
       )
       expect(() =>
         simulatePolicy({

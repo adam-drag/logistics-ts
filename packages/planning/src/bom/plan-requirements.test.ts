@@ -185,6 +185,68 @@ describe('planRequirements', () => {
     ).toThrow(/component of itself/)
   })
 
+  // planRequirements and explode take the same BOM shape and the same
+  // period-indexed demand series, so they must reject the same inputs with the
+  // same messages. They originally did not: planRequirements carried a
+  // hand-trimmed copy of explode's guard block, so a NaN quantityPer or a hole
+  // in the master schedule produced a plausible-looking but wrong plan instead
+  // of an error. The guards are now shared (bom/validate.ts) and these tests
+  // pin the parity.
+  describe('input validation (parity with explode)', () => {
+    it('rejects a negative or non-finite quantityPer, naming the BOM field', () => {
+      expect(() =>
+        planRequirements({
+          bom: [{ parentId: 'A', childId: 'B', quantityPer: -1 }],
+          masterSchedule: [{ itemId: 'A', requirements: [1] }],
+        }),
+      ).toThrow(/bom\[0\]\.quantityPer/)
+      expect(() =>
+        planRequirements({
+          bom: [{ parentId: 'A', childId: 'B', quantityPer: Number.NaN }],
+          masterSchedule: [{ itemId: 'A', requirements: [1] }],
+        }),
+      ).toThrow(/bom\[0\]\.quantityPer/)
+    })
+
+    it('rejects a non-string parentId or childId', () => {
+      expect(() =>
+        planRequirements({
+          bom: [{ parentId: 1 as unknown as string, childId: 'B', quantityPer: 1 }],
+          masterSchedule: [],
+        }),
+      ).toThrow(/bom\[0\] must have string parentId and childId/)
+    })
+
+    it('rejects a hole or non-number in the master schedule instead of reading it as zero demand', () => {
+      // biome-ignore lint/suspicious/noSparseArray: a hole is exactly the caller bug under test
+      const holed = [10, , 30] as unknown as number[]
+      expect(() =>
+        planRequirements({ bom: [], masterSchedule: [{ itemId: 'A', requirements: holed }] }),
+      ).toThrow(/masterSchedule\['A'\]\.requirements\[1\]/)
+      expect(() =>
+        planRequirements({
+          bom: [],
+          masterSchedule: [{ itemId: 'A', requirements: [1, Number.NaN] }],
+        }),
+      ).toThrow(/masterSchedule\['A'\]\.requirements\[1\]/)
+      expect(() =>
+        planRequirements({
+          bom: [],
+          masterSchedule: [{ itemId: 'A', requirements: [1, -5] }],
+        }),
+      ).toThrow(/masterSchedule\['A'\]\.requirements\[1\]/)
+    })
+
+    it('rejects a non-string itemId in the master schedule', () => {
+      expect(() =>
+        planRequirements({
+          bom: [],
+          masterSchedule: [{ itemId: 7 as unknown as string, requirements: [1] }],
+        }),
+      ).toThrow(/masterSchedule\[0\]\.itemId must be a string/)
+    })
+  })
+
   it('exposes the explanation contract', () => {
     const plan = planRequirements({
       bom: [{ parentId: 'A', childId: 'B', quantityPer: 2 }],

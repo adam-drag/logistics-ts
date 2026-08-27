@@ -19,6 +19,7 @@ import type {
   PlanRequirementsInput,
   RequirementsPlan,
 } from './types'
+import { requireValidBom, requireValidRequirements } from './validate'
 
 /** Above this many items the narration summarises instead of listing each one. */
 const MAX_NARRATED_ITEMS = 12
@@ -77,38 +78,18 @@ const MAX_NARRATED_ITEMS = 12
 export function planRequirements(input: PlanRequirementsInput): RequirementsPlan {
   const { bom, masterSchedule } = input
   const items = input.items ?? {}
-  if (!Array.isArray(bom)) {
-    throw new TypeError(`bom must be an array of BOM lines (got ${typeof bom})`)
-  }
-  if (!Array.isArray(masterSchedule)) {
-    throw new TypeError(`masterSchedule must be an array (got ${typeof masterSchedule})`)
-  }
-  for (const [index, line] of bom.entries()) {
-    if (line === null || typeof line !== 'object') {
-      throw new TypeError(`bom[${index}] must be a BOM line object (got ${typeof line})`)
-    }
-    if (line.parentId === line.childId) {
-      throw new RangeError(
-        `bom[${index}] makes '${line.parentId}' a component of itself (parentId === childId)`,
-      )
-    }
-  }
-
+  requireValidBom(bom)
   // Horizon is set by the master schedule: it is the independent demand the
   // whole plan answers. Every item's grid runs over exactly this many periods.
-  let horizon = 0
-  for (const [index, entry] of masterSchedule.entries()) {
-    if (!Array.isArray(entry?.requirements)) {
-      throw new TypeError(`masterSchedule[${index}].requirements must be an array`)
-    }
-    horizon = Math.max(horizon, entry.requirements.length)
-  }
+  const horizon = requireValidRequirements('masterSchedule', masterSchedule)
 
   const independent = new Map<string, number[]>()
   for (const entry of masterSchedule) {
     const row = independent.get(entry.itemId) ?? new Array<number>(horizon).fill(0)
-    for (let period = 0; period < entry.requirements.length; period++) {
-      row[period] = (row[period] ?? 0) + (entry.requirements[period] ?? 0)
+    // `+=` across entries: one item may appear on several master-schedule lines
+    // (separate order streams for the same end item), and each must contribute.
+    for (const [period, q] of entry.requirements.entries()) {
+      row[period] = (row[period] ?? 0) + q
     }
     independent.set(entry.itemId, row)
   }

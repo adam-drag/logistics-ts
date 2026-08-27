@@ -35,6 +35,11 @@ warns that those components' requirements are **understated** — demand from
 before period 0 could not be scheduled at all. That is a stronger condition than
 the grid's own past-due warning, and one a component's plan cannot report alone.
 
+Both entry points reject the same malformed input with the same message naming
+the offending field: a non-finite or negative `quantityPer`, a non-string item
+id, and — importantly — a hole or non-number anywhere inside a provided demand
+series, which is an error rather than zero demand.
+
 `@logistics-ts/core` adds the `BomLine`, `BomRecord` and `MasterScheduleRecord`
 types (types only — core keeps zero runtime dependencies).
 

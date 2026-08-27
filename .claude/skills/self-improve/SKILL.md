@@ -115,6 +115,19 @@ agree — a wrong explanation is worse than none in an explainable library.
   **doctest-style test** — assert the documented example inputs produce the
   documented outputs, so `@example`/code drift fails CI. Add one whenever an
   `@example` carries load-bearing numbers.
+- **When a definition is written in two files, the PUBLIC one is the one that
+  drifts — and it is the one consumers read.** The internal
+  `low-level-codes.ts` defined a low-level code correctly ("Items with **no
+  parent in the BOM** are `0`"); the public `bom/types.ts` restated it as "End
+  items are `0`", which is false for an item that has independent demand *and* is
+  consumed as a component elsewhere — it gets the code its deepest parent forces,
+  precisely so it is planned after them. The implementation file was right because
+  it sits next to the code; the types file was written from memory of the concept.
+  This is the "one unqualified sibling is the bug" pattern applied to definitions
+  rather than hedges: when a term is defined in more than one place, grep for every
+  statement of it and make the public one a copy of the implementation-adjacent
+  one, then add the surprising case explicitly rather than leaving the reader to
+  infer it. (Caught: PR#40 M9 `bom/types.ts`, Copilot.)
 - **A warning must state the cause the code actually established, not the most
   common one.** `autoForecast`'s fallback warned "series too short" but the same
   branch fires when a constant series makes every backtest MASE non-finite; track
@@ -171,6 +184,37 @@ not just where a test happened to expose it.
 A primitive that a power user calls directly must reject nonsensical input with a
 clear error, not compute undefined behavior or silently return an empty/wrong result.
 
+- **A second entry point taking the same input shape must SHARE the first one's
+  guards, never carry a hand-adapted copy.** `explode(bom, demand)` and
+  `planRequirements({ bom, masterSchedule })` take the same BOM edge list and the
+  same period-indexed demand series. `explode` validated both properly;
+  `planRequirements` was written by adapting `explode`'s guard block by hand and
+  lost two checks in the copy — `quantityPer` was never checked (so `NaN` or a
+  negative propagated NaN through the whole plan and surfaced as a bizarre
+  `grossRequirements` failure far from the bad field), and master-schedule entries
+  were coalesced with `?? 0` (so a hole `[10, , 30]`, an `undefined`, or a
+  non-number was read as *zero demand* and produced a plausible-looking but wrong
+  plan, with no error at all). The fix was to extract `requireValidBom` /
+  `requireValidRequirements` into `bom/validate.ts` and call them from both, with
+  the caller's own parameter name passed in as a label so the message still names
+  the field the caller actually passed (`demand['A'].requirements[1]` vs
+  `masterSchedule['A'].requirements[1]`).
+  - **The authoring-time rule:** the moment you find yourself pasting a guard block
+    into a second function, stop and extract it. Divergence is not hypothetical —
+    it happened *in the same commit that introduced the copy*.
+  - **The review-time tell:** the second entry point's test file has no validation
+    `describe` block while its sibling's does. Diff the two test files, not just
+    the two implementations. `explode.test.ts` had "rejects negative or non-finite
+    quantities" and "rejects non-array inputs"; `plan-requirements.test.ts` had
+    neither, and nothing flagged it.
+  - **`?? 0` on an input array is almost always a bug, not a strictness
+    workaround.** `noUncheckedIndexedAccess` makes `arr[i]` be `number |
+    undefined`, and `?? 0` silences it — but on a *caller-supplied* array that
+    coalesce is exactly how a hole becomes silent zero demand. Validate the array
+    up front, then iterate with `.entries()`, which types the value as `number`
+    with no cast and no coalesce. Reserve `?? 0` for arrays you allocated yourself
+    (`new Array<number>(n).fill(0)`), where the index genuinely cannot miss.
+  (Caught: PR#40 M9 `plan-requirements.ts`, Copilot ×2.)
 - **A composite function can't delegate its own input validation to a sub-call
   that isn't always reached.** `issues()` never validated `serviceLevel` itself,
   relying on `safetyStock()` (which does validate it) — but `safetyStock()` is
@@ -273,6 +317,23 @@ validate structurally, not trust a partial shape.
   defect — a scaffold template is a doc that makes claims about code, and it goes
   stale/wrong like any other. (Caught: PR#24 M7 review; fixed in `packages/planning`
   + the plan's Appendix A.)
+- **The layering law binds DOCS as well as imports, and nothing enforces it.**
+  `core/src/model.ts`'s `BomLine` doc said a cyclic BOM is rejected by
+  `{@link explode}` — but `explode` lives in `@logistics-ts/planning`, three
+  layers *above* `core`. The link cannot resolve (core does not and must not
+  depend on planning), so it renders as dead text in IDE hover and generated docs,
+  and it quietly asserts upward knowledge from the zero-dependency leaf. Same
+  structural blindness as the unused-dependency case: `deps:check` cruises
+  *imports*, so a cross-layer reference that exists only in a comment is invisible
+  to it. Name an upper-layer symbol in **plain prose with its package**
+  (``` `explode` (in `@logistics-ts/planning`) ```), never as a `{@link}`.
+  - **Same-package and downward links are fine and are the repo convention** — 14
+    other files link to same-package siblings or to `core` symbols they don't
+    import for code (`bucketize`, `Explained`). Don't churn those; the defect is
+    specifically the **upward** reference.
+  - Survey with a script that lists every `{@link X}` whose `X` never appears
+    outside comments in that file, then check each hit's package against the
+    layering order. (Caught: PR#40 M9 `core/src/model.ts`, Copilot.)
 - **`noUnusedLocals` does not catch doc-only imports** — tsc counts a TSDoc
   `{@link X}` as a usage, so an import referenced only from doc comments sails
   through typecheck. Biome `correctness/noUnusedImports` + `noUnusedVariables` are

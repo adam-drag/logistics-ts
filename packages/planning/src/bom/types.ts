@@ -36,10 +36,18 @@ export interface ExplosionResult {
    */
   grossRequirements: Record<string, number[]>
   /**
-   * Low-level code per item: the **longest** path in the product structure from
-   * any end item down to that item. End items are `0`. This is the order the
-   * explosion processes items in, and it is what guarantees each component is
-   * accumulated only after *every* one of its parents.
+   * Low-level code per item: the **longest** path in the product structure down
+   * to that item. Items with **no parent in the BOM** are `0`.
+   *
+   * Note that this is a structural property, not a demand one: an item that has
+   * independent demand but is *also* consumed as a component somewhere gets the
+   * code its deepest parent forces, not `0`. That is deliberate — it must be
+   * planned after those parents have contributed, or its requirement comes out
+   * short.
+   *
+   * This is the order the explosion processes items in, and it is what
+   * guarantees each component is accumulated only after *every* one of its
+   * parents.
    */
   lowLevelCodes: Record<string, number>
 }

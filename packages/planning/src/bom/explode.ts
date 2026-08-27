@@ -9,10 +9,10 @@
  *   Management, 15th ed., McGraw-Hill — multi-level BOM explosion.
  */
 import { type BomRecord, explain } from '@logistics-ts/core'
-import { requireNonNegative } from '../lot-sizing/validate'
 import { round } from '../round'
 import { assignLowLevelCodes } from './low-level-codes'
 import type { Explosion, ItemRequirements } from './types'
+import { requireValidBom, requireValidRequirements } from './validate'
 
 /** Above this many items the narration summarises instead of listing each one. */
 const MAX_NARRATED_ITEMS = 12
@@ -74,46 +74,10 @@ const MAX_NARRATED_ITEMS = 12
  * ```
  */
 export function explode(bom: BomRecord, demand: readonly ItemRequirements[]): Explosion {
-  if (!Array.isArray(bom)) {
-    throw new TypeError(`bom must be an array of BOM lines (got ${typeof bom})`)
-  }
-  if (!Array.isArray(demand)) {
-    throw new TypeError(`demand must be an array of item requirements (got ${typeof demand})`)
-  }
-  for (const [index, line] of bom.entries()) {
-    if (line === null || typeof line !== 'object') {
-      throw new TypeError(`bom[${index}] must be a BOM line object (got ${typeof line})`)
-    }
-    if (typeof line.parentId !== 'string' || typeof line.childId !== 'string') {
-      throw new TypeError(`bom[${index}] must have string parentId and childId`)
-    }
-    if (line.parentId === line.childId) {
-      // The degenerate cycle. Caught here so the message names the item rather
-      // than surfacing as a general "could not be levelled" further down.
-      throw new RangeError(
-        `bom[${index}] makes '${line.parentId}' a component of itself (parentId === childId)`,
-      )
-    }
-    requireNonNegative(`bom[${index}].quantityPer`, line.quantityPer)
-  }
-
+  requireValidBom(bom)
   // Horizon = the longest driving series; shorter ones are zero-padded so every
   // output row is the same length and callers can zip them without checking.
-  let horizon = 0
-  for (const [index, entry] of demand.entries()) {
-    if (entry === null || typeof entry !== 'object') {
-      throw new TypeError(`demand[${index}] must be an object (got ${typeof entry})`)
-    }
-    if (typeof entry.itemId !== 'string') {
-      throw new TypeError(`demand[${index}].itemId must be a string`)
-    }
-    if (!Array.isArray(entry.requirements)) {
-      throw new TypeError(
-        `demand[${index}].requirements must be an array (got ${typeof entry.requirements})`,
-      )
-    }
-    horizon = Math.max(horizon, entry.requirements.length)
-  }
+  const horizon = requireValidRequirements('demand', demand)
 
   const grossRequirements: Record<string, number[]> = {}
   const ensure = (itemId: string): number[] => {
@@ -128,9 +92,11 @@ export function explode(bom: BomRecord, demand: readonly ItemRequirements[]): Ex
   for (const entry of demand) {
     seeds.push(entry.itemId)
     const row = ensure(entry.itemId)
-    for (let period = 0; period < entry.requirements.length; period++) {
-      const q = entry.requirements[period]
-      requireNonNegative(`demand['${entry.itemId}'].requirements[${period}]`, q)
+    // `.entries()` rather than an index loop: every value is already known
+    // finite (requireValidRequirements ran above), and iterating this way types
+    // it as `number` without a cast or a `?? 0` that would look like the
+    // hole-swallowing coalesce this function deliberately does not do.
+    for (const [period, q] of entry.requirements.entries()) {
       // `+=`, not `=`: the same itemId may legitimately appear twice in the
       // driving demand (two order streams for one end item), and silently
       // dropping the first would understate the whole explosion beneath it.

@@ -63,7 +63,9 @@ export interface LeadTimeRecord {
  *
  * A `BomRecord` is the edge list of a **product-structure DAG**. It must be
  * acyclic — an item that is transitively its own component cannot be planned,
- * and {@link explode} rejects it naming the offending edge.
+ * and `explode` (in `@logistics-ts/planning`) rejects it naming the offending
+ * edge. Named in prose rather than as a `{@link}`: `core` is the bottom layer
+ * and cannot reference a package that sits above it, in code or in docs.
  *
  * @see Orlicky, J. (1975). Material Requirements Planning, McGraw-Hill —
  *   product structure and low-level codes.

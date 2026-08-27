@@ -8,6 +8,35 @@
  * Agents read these `.d.ts` blocks directly, so a wrong one is a wrong API.
  *
  * When you change an `@example`, change the matching assertion here.
+ *
+ * ## Why these assert EXACT equality, unlike the numeric tests next door
+ *
+ * `numerics/normal.test.ts` uses `toBeCloseTo`, and it is right to: it asks
+ * *"is the maths correct?"* against a published table quoted to four decimals,
+ * so a tolerance is the only meaningful comparison.
+ *
+ * This file asks a different question — *"does the `@example` block still say
+ * what the code prints?"* The documented value is every digit of it. Loosening
+ * to `toBeCloseTo` would let the documented digits rot while the test stayed
+ * green, which is precisely the failure this file was created to prevent. The
+ * strictness is the feature, not an oversight.
+ *
+ * The residues are load-bearing too: `nelderMead`'s `3.000024299792811` is
+ * documented rather than `3` exactly so a reader can see the method returns an
+ * approximation with visible convergence residue.
+ *
+ * ## When one of these fails
+ *
+ * Arithmetic (`+ - * /`) and `Math.sqrt` are exactly specified by IEEE-754, so
+ * the stats, bucketize, loader and epoch-day assertions cannot drift between
+ * engines — a failure there is a real behaviour change.
+ *
+ * `Math.exp` and `**` are *implementation-approximated* — ECMAScript explicitly
+ * permits engine-dependent results — so the `normal.ts` and `optimize.ts`
+ * assertions could in principle shift on a V8 upgrade. That is still a true
+ * positive, not a flake: it means the published `@example` values have become
+ * wrong. The fix is to re-run the code and update BOTH the `@example` and the
+ * assertion, never to relax the assertion.
  */
 import { describe, expect, it } from 'vitest'
 import { normalCdf, normalLossFunction, normalPdf } from './numerics/normal'
@@ -34,9 +63,9 @@ describe('@example blocks in core', () => {
     expect(standardDeviation(s)).toBe(3.1622776601683795)
     expect(coefficientOfVariation(s)).toBe(0.31622776601683794)
 
-    const lumpy = [0, 5, 0, 0, 12, 0, 3, 0]
-    expect(squaredCvOfNonZero(lumpy)).toBe(0.5025000000000001)
-    expect(averageDemandInterval(lumpy)).toBe(2.6666666666666665)
+    const lumpy = [0, 5, 0, 0, 20, 0, 35, 0, 0]
+    expect(squaredCvOfNonZero(lumpy)).toBe(0.5625)
+    expect(averageDemandInterval(lumpy)).toBe(3)
   })
 
   it('normal.ts', () => {

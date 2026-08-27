@@ -1,7 +1,11 @@
 /**
  * Doctests for the `@example` blocks in this package — see the note in
- * `packages/core/src/doctest.test.ts` for why these exist. When you change an
- * `@example`, change the matching assertion here.
+ * `packages/core/src/doctest.test.ts` for why these exist, and for why they
+ * assert exact equality rather than a tolerance. When you change an `@example`,
+ * change the matching assertion here.
+ *
+ * The CV values below are reached by `+ - * /` and `Math.sqrt` only, all exactly
+ * specified by IEEE-754, so they cannot drift between engines.
  */
 import { bucketize } from '@logistics-ts/core'
 import { describe, expect, it } from 'vitest'

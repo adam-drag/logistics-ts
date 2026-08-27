@@ -82,8 +82,8 @@ export function coefficientOfVariation(values: readonly number[], population = f
  *   of demand patterns. Journal of the Operational Research Society, 56(5).
  * @example
  * ```ts
- * // Only the sizes 5, 12 and 3 are used; the zero periods are ignored.
- * squaredCvOfNonZero([0, 5, 0, 0, 12, 0, 3, 0]) // 0.5025000000000001
+ * // Only the sizes 5, 20 and 35 are used; the zero periods are ignored.
+ * squaredCvOfNonZero([0, 5, 0, 0, 20, 0, 35, 0, 0]) // 0.5625
  * ```
  */
 export function squaredCvOfNonZero(values: readonly number[]): number {
@@ -104,8 +104,8 @@ export function squaredCvOfNonZero(values: readonly number[]): number {
  * @see Syntetos, Boylan & Croston (2005).
  * @example
  * ```ts
- * // 8 periods, 3 of them with demand.
- * averageDemandInterval([0, 5, 0, 0, 12, 0, 3, 0]) // 2.6666666666666665 = 8 / 3
+ * // 9 periods, 3 of them with demand: on average one every 3 periods.
+ * averageDemandInterval([0, 5, 0, 0, 20, 0, 35, 0, 0]) // 3
  * ```
  */
 export function averageDemandInterval(series: readonly number[]): number {

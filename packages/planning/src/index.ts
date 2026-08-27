@@ -24,6 +24,8 @@
  * net-requirements series to whichever rule the caller selects.
  */
 export { type Explained, explain } from '@logistics-ts/core'
+export { explode } from './bom/explode'
+export type { Explosion, ExplosionResult, ItemRequirements } from './bom/types'
 export { accumulateLotCost, type LotSizingCost, simulateLotCost } from './lot-sizing/cost'
 export {
   type FixedOrderQuantityOptions,

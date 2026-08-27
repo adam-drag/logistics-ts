@@ -9,7 +9,15 @@
 export { type Explained, type Explanation, explain } from './explained'
 
 // Data model
-export type { DateInput, DemandRecord, LeadTimeRecord, StockRecord } from './model'
+export type {
+  BomLine,
+  BomRecord,
+  DateInput,
+  DemandRecord,
+  LeadTimeRecord,
+  MasterScheduleRecord,
+  StockRecord,
+} from './model'
 export {
   inverseNormalCdf,
   normalCdf,

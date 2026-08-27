@@ -56,3 +56,42 @@ export interface LeadTimeRecord {
   /** Optional date the receipt/order was observed. */
   date?: DateInput
 }
+
+/**
+ * One edge of a bill-of-materials: the parent item consumes `quantityPer` units
+ * of the child item per unit of parent produced.
+ *
+ * A `BomRecord` is the edge list of a **product-structure DAG**. It must be
+ * acyclic — an item that is transitively its own component cannot be planned,
+ * and {@link explode} rejects it naming the offending edge.
+ *
+ * @see Orlicky, J. (1975). Material Requirements Planning, McGraw-Hill —
+ *   product structure and low-level codes.
+ */
+export interface BomLine {
+  /** Stable identifier of the assembly that consumes the child. */
+  parentId: string
+  /** Stable identifier of the component consumed. */
+  childId: string
+  /**
+   * Units of `childId` consumed per unit of `parentId` (units/unit). Must be
+   * finite and non-negative; scrap/yield allowances belong in this factor.
+   */
+  quantityPer: number
+}
+
+/** A complete bill of materials: the edge list of the product-structure DAG. */
+export type BomRecord = BomLine[]
+
+/**
+ * One line of a master production schedule: the independent demand that drives
+ * an MRP run. Reuses the calendar-date boundary convention of the other records.
+ */
+export interface MasterScheduleRecord {
+  /** Stable identifier of the end item being scheduled. */
+  itemId: string
+  /** Calendar date the quantity is required. */
+  date: DateInput
+  /** Quantity required. Must be finite and non-negative. */
+  quantity: number
+}

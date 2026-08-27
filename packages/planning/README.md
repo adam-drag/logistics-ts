@@ -163,6 +163,36 @@ plan.value.items.WHEEL.grossRequirements      // driven by BIKE's RELEASES
 plan.value.items.SPOKE.rows                   // full time-phased record
 ```
 
+### Dated records in, periods out
+
+Every planning function is indexed by **period (bucket)**, and `leadTimePeriods`
+counts those same buckets — at weekly buckets a 10-day lead time is `2`. Turn
+dated master-schedule rows into that shape with `toMasterSchedule`:
+
+```ts
+import { toMasterSchedule } from '@logistics-ts/planning'
+
+const { masterSchedule, periods } = toMasterSchedule(
+  [
+    { itemId: 'BIKE', date: '2026-03-02', quantity: 100 },
+    { itemId: 'BIKE', date: '2026-03-16', quantity: 150 },
+  ],
+  'week',
+)
+
+periods // ['2026-03-02', '2026-03-09', '2026-03-16']
+masterSchedule[0] // { itemId: 'BIKE', requirements: [100, 0, 150] }
+```
+
+It aligns **every item to one shared calendar**, which is why it exists rather
+than a bare `bucketize` call: `bucketize` defaults each item to that item's own
+earliest and latest demand, which is right for forecasting and silently wrong
+here, where period 0 must mean the same period for every item. Pass `start` to
+pin period 0 to a real date such as today.
+
+Pass `periods` on to `planRequirements` and it is echoed back on the result, so a
+planned order can be reported against a date instead of an index.
+
 **Components are driven by their parents' planned order _releases_, not their
 gross requirements.** A parent that must be *started* in period 3 needs its
 components in period 3 — not in period 5 when the finished parent arrives — and

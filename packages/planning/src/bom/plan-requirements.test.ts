@@ -340,3 +340,59 @@ describe('planRequirements', () => {
     })
   })
 })
+
+describe('period labels', () => {
+  it('echoes the labels back and names the calendar span in the reasoning', () => {
+    const plan = planRequirements({
+      bom: [{ parentId: 'A', childId: 'B', quantityPer: 2 }],
+      masterSchedule: [{ itemId: 'A', requirements: [0, 0, 10] }],
+      periods: ['2026-03-02', '2026-03-09', '2026-03-16'],
+    })
+    expect(plan.value.periods).toEqual(['2026-03-02', '2026-03-09', '2026-03-16'])
+    expect(plan.reasoning.some((r) => /period 0 is 2026-03-02/.test(r))).toBe(true)
+  })
+
+  it('omits periods entirely when none were given', () => {
+    const plan = planRequirements({
+      bom: [],
+      masterSchedule: [{ itemId: 'A', requirements: [1] }],
+    })
+    expect(plan.value.periods).toBeUndefined()
+    expect('periods' in plan.value).toBe(false)
+  })
+
+  // A wrong-length label set would mislabel every planned order in the plan,
+  // which is worse than having no labels at all — so it must not be tolerated.
+  it('rejects a label count that does not match the horizon', () => {
+    expect(() =>
+      planRequirements({
+        bom: [],
+        masterSchedule: [{ itemId: 'A', requirements: [1, 2, 3] }],
+        periods: ['2026-03-02', '2026-03-09'],
+      }),
+    ).toThrow(/2 label\(s\).*spans 3 period\(s\)/)
+  })
+
+  it('does not let labels change any number in the plan', () => {
+    const base = {
+      bom: [{ parentId: 'A', childId: 'B', quantityPer: 2 }],
+      masterSchedule: [{ itemId: 'A', requirements: [0, 5, 10] }],
+      items: { A: { leadTimePeriods: 1, onHand: 3 } },
+    }
+    const without = planRequirements(base)
+    const with_ = planRequirements({ ...base, periods: ['w1', 'w2', 'w3'] })
+    expect(with_.value.items).toEqual(without.value.items)
+    expect(with_.value.order).toEqual(without.value.order)
+  })
+
+  it('copies the labels rather than aliasing the caller’s array', () => {
+    const periods = ['2026-03-02', '2026-03-09']
+    const plan = planRequirements({
+      bom: [],
+      masterSchedule: [{ itemId: 'A', requirements: [1, 2] }],
+      periods,
+    })
+    periods[0] = 'MUTATED'
+    expect(plan.value.periods?.[0]).toBe('2026-03-02')
+  })
+})

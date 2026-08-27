@@ -87,6 +87,15 @@ export interface PlanRequirementsInput {
    * no stock, no receipts, no safety stock, zero lead time, and lot-for-lot.
    */
   items?: Record<string, ItemPlanningData>
+  /**
+   * Optional calendar label per period index, as returned by `toMasterSchedule`.
+   * Purely descriptive — it does not affect a single number in the plan — but it
+   * lets a planned order in period 3 be reported against a real date instead of
+   * an index, which is most of what makes the plan actionable to a human.
+   *
+   * Must have exactly one entry per period if given.
+   */
+  periods?: readonly string[]
 }
 
 /** The plan for one item within a multi-level run: its grid, plus its place in the structure. */
@@ -116,6 +125,11 @@ export interface MultiLevelPlan {
   lowLevelCodes: Record<string, number>
   /** The item ids that were planned, in the order they were planned. */
   order: string[]
+  /**
+   * Calendar label per period index, echoed from the input when it was given.
+   * `periods[t]` names the period every `rows[t]` in every item refers to.
+   */
+  periods?: string[]
 }
 
 /** A multi-level MRP result: a {@link MultiLevelPlan} wrapped in `Explained`. */

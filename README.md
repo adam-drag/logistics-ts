@@ -74,11 +74,13 @@ every export:
   and links to everything below.
 - **[`AGENTS.md`](AGENTS.md)** — a "which function for which problem" decision
   table and the full gotchas list.
-- **Shipped skills** — [`forecast-and-replenish`](packages/logistics-ts/skills/forecast-and-replenish/SKILL.md)
-  and [`inventory-analysis`](packages/logistics-ts/skills/inventory-analysis/SKILL.md)
+- **Shipped skills** — [`forecast-and-replenish`](packages/logistics-ts/skills/forecast-and-replenish/SKILL.md),
+  [`inventory-analysis`](packages/logistics-ts/skills/inventory-analysis/SKILL.md)
+  and [`mrp-planning`](packages/logistics-ts/skills/mrp-planning/SKILL.md)
   are end-to-end recipes included in the published npm tarball.
-- **[`examples/`](examples/)** — three runnable scripts (`pnpm example:quickstart`,
-  `pnpm example:forecast-replenish`, `pnpm example:inventory-analysis`).
+- **[`examples/`](examples/)** — four runnable scripts (`pnpm example:quickstart`,
+  `pnpm example:forecast-replenish`, `pnpm example:inventory-analysis`,
+  `pnpm example:mrp`).
 
 ## Packages
 

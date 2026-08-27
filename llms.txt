@@ -64,6 +64,9 @@ over MAPE for intermittent demand.
 - [inventory-analysis](packages/logistics-ts/skills/inventory-analysis/SKILL.md):
   ABC-XYZ classification, coverage/turnover, and the issue analyser, via both the
   `InventoryAnalyzer` wrapper and the pure functions.
+- [mrp-planning](packages/logistics-ts/skills/mrp-planning/SKILL.md): BOM +
+  master production schedule -> explode -> net -> lot-size -> lead-time offset ->
+  explained planned orders, plus when to use `explode` instead.
 
 ## Examples (runnable)
 
@@ -73,6 +76,9 @@ over MAPE for intermittent demand.
   replenishment plan across a catalogue (`pnpm example:forecast-replenish`).
 - [inventory-analysis](examples/inventory-analysis.ts): ABC-XYZ + coverage +
   issues via `InventoryAnalyzer` (`pnpm example:inventory-analysis`).
+- [mrp-planning](examples/mrp-planning.ts): a bicycle planned three levels deep
+  from a BOM + MPS, with planned orders printed against real dates
+  (`pnpm example:mrp`).
 
 ## Optional
 

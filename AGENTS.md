@@ -27,7 +27,7 @@ domain function returns `Explained<T>` (`.value` + `.method` + `.inputs` +
 
 | I want to… | Use | Package |
 |---|---|---|
-| Map CSV/DB rows onto canonical records | `loadDemand` / `loadStock` / `loadLeadTimes` | core |
+| Map CSV/DB rows onto canonical records | `loadDemand` / `loadStock` / `loadLeadTimes` / `loadBom` / `loadMasterSchedule` | core |
 | Make a dense, zero-filled per-item series | `bucketize(demand, 'day'\|'week'\|'month')` | core |
 | Generate a synthetic dataset for a demo | `generateExampleData({ items, periods, seed })` | core |
 | Know if demand is smooth/erratic/intermittent/lumpy | `classifyDemandPattern(series)` | classification |
@@ -46,6 +46,10 @@ domain function returns `Explained<T>` (`.value` + `.method` + `.inputs` +
 | Hit a target fill rate (Type-2 service, β) | `fillRate` / `safetyStockForFillRate` / `serviceMetrics` | inventory |
 | Size lots over a demand vector | `lotSize(demand, { rule })` — or a rule directly (`wagnerWhitin` is the optimum) | planning |
 | Net demand against stock and open orders | `mrpGrid({ grossRequirements, onHand, scheduledReceipts, leadTimePeriods })` | planning |
+| Explode a BOM into dependent gross requirements | `explode(bom, demand)` | planning |
+| Turn a dated MPS into aligned period series | `toMasterSchedule(records, 'week', { start })` | planning |
+| Run a full multi-level MRP from an MPS + BOM | `planRequirements({ bom, masterSchedule, items, periods })` | planning |
+| Run an MRP using stock/lead times you already hold | `analyzer.plan({ bom, masterSchedule, granularity })` | logistics-ts |
 | Run several analyses over one held dataset | `new InventoryAnalyzer({ demand, stock, leadTimes })` | logistics-ts |
 
 For end-to-end recipes see the shipped skills in

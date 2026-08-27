@@ -1,5 +1,12 @@
 # @logistics-ts/examples
 
+## 0.2.0
+
+### Patch Changes
+
+- Updated dependencies [0103a19]
+  - logistics-ts@0.2.0
+
 ## 0.1.1
 
 ### Patch Changes

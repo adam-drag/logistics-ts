@@ -9,7 +9,15 @@
 export { type Explained, type Explanation, explain } from './explained'
 
 // Data model
-export type { DateInput, DemandRecord, LeadTimeRecord, StockRecord } from './model'
+export type {
+  BomLine,
+  BomRecord,
+  DateInput,
+  DemandRecord,
+  LeadTimeRecord,
+  MasterScheduleRecord,
+  StockRecord,
+} from './model'
 export {
   inverseNormalCdf,
   normalCdf,
@@ -39,14 +47,18 @@ export {
   generateExampleData,
 } from './synthetic/generate'
 export {
+  type BomColumnMap,
   type DemandColumnMap,
   type LeadTimeColumnMap,
   type LoadIssue,
   type LoadOptions,
   type LoadResult,
+  loadBom,
   loadDemand,
   loadLeadTimes,
+  loadMasterSchedule,
   loadStock,
+  type MasterScheduleColumnMap,
   type StockColumnMap,
 } from './table/loader'
 // Tabular input + loaders

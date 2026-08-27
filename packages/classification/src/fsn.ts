@@ -27,6 +27,22 @@ export interface FsnClassification {
 /**
  * Classifies bucketed demand series into Fast / Slow / Non-moving.
  * Feed the dense, zero-filled output of {@link bucketize}.
+ *
+ * The axis is movement **frequency** (how many periods had any demand), not
+ * volume — a low-volume item that sells every week is Fast.
+ *
+ * @example
+ * ```ts
+ * const series = bucketize(demand, 'week')
+ * fsn(series).value
+ * // [
+ * //   { itemId: 'SPIKY',  class: 'F', movementRatio: 1 },
+ * //   { itemId: 'STEADY', class: 'F', movementRatio: 1 },
+ * // ]
+ *
+ * // Demand in fewer than 80% of periods now counts as Slow.
+ * fsn(series, { fastCutoff: 0.8 })
+ * ```
  */
 export function fsn(
   series: readonly DemandSeries[],

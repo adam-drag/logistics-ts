@@ -162,6 +162,27 @@ finding when the change adds a new package, a new export, or a plan-level decisi
   re-exports.
 - **Forward:** every cross-package import is declared in that package's
   `package.json` `dependencies` (`workspace:*`).
+- **In prose too — `deps:check` cannot see this.** A `{@link X}` naming a symbol
+  from a *higher* layer is an upward reference that depcruise never cruises: it
+  reads imports, not comments. `core/src/model.ts` linked `{@link explode}` from
+  `@logistics-ts/planning` and stayed green. Same-package and downward links are
+  the repo convention and fine; hunt only upward ones:
+  ```bash
+  # every {@link X} whose X appears nowhere outside comments in that file
+  node -e '
+  const {readFileSync}=require("fs"),{execSync}=require("child_process")
+  for (const f of execSync("git ls-files \x27packages/*/src/**/*.ts\x27 \x27packages/*/src/*.ts\x27",
+      {encoding:"utf8"}).split("\n").filter(f=>f&&!f.endsWith(".test.ts"))) {
+    const src=readFileSync(f,"utf8")
+    const code=src.replace(/\/\*[\s\S]*?\*\//g,"").replace(/\/\/.*/g,"")
+    const bad=[...new Set([...src.matchAll(/\{@link\s+([A-Za-z_]\w*)/g)].map(m=>m[1]))]
+      .filter(n=>!new RegExp("\\b"+n+"\\b").test(code))
+    if (bad.length) console.log(f,"->",bad.join(", "))
+  }'
+  ```
+  then check each hit's home package against the layering order. Expect ~14 benign
+  same-package/downward hits — you are looking for the one that points *up*. The fix is plain
+  prose naming the package, never a link.
 - **Reverse — the direction reviewers forget:** every *declared* dependency is
   actually imported. Diff the two sets mechanically, don't eyeball it:
   ```bash
@@ -210,6 +231,16 @@ finding when the change adds a new package, a new export, or a plan-level decisi
   about to write, grep the full diff and the files it touches for other occurrences
   of the same shape and list them all in the one finding. If you catch yourself
   writing "e.g." about a repeated pattern, stop and enumerate them.
+
+- **When a PR adds a second entry point over an input shape an existing export
+  already takes, diff the two TEST files, not just the two implementations.** The
+  new function's guards are typically a hand-adapted copy of the old one's, and the
+  copy loses checks. The tell is asymmetric coverage: the established export has a
+  validation `describe` block, the new one has none. `planRequirements` shipped
+  without a single validation test while its sibling `explode` had two, and it had
+  silently dropped the `quantityPer` check and coalesced master-schedule holes to
+  zero demand. Ask directly: *what does the older sibling reject that this one
+  accepts?* — then run those inputs through the new function.
 
 ### 4j. Absence sweep — what *should* be here but isn't
 - A new export with no `@example`, no test, or no changeset. A new formula with no

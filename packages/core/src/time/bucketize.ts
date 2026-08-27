@@ -77,9 +77,37 @@ function keyToLabel(key: number, granularity: Granularity): string {
  * Buckets demand records into dense, zero-filled series — one per item, sorted
  * by `itemId`, each chronologically ordered.
  *
+ * Zero-filling is the point: ADI/CV² and every exponential-smoothing recursion
+ * are only meaningful when periods with no demand are present as explicit zeros.
+ * Never feed a compacted, nonzero-only list to a forecasting or classification
+ * function.
+ *
  * @param records - Raw demand records; multiple records in the same period are summed.
  * @param granularity - `day`, `week`, or `month`.
  * @param options - Optional common calendar range (see {@link BucketizeOptions}).
+ * @example
+ * ```ts
+ * bucketize(
+ *   [
+ *     { itemId: 'A', date: '2026-01-05', quantity: 10 },
+ *     { itemId: 'A', date: '2026-01-07', quantity: 4 },
+ *     { itemId: 'A', date: '2026-01-21', quantity: 6 },
+ *   ],
+ *   'week',
+ * )
+ * // [{
+ * //   itemId: 'A',
+ * //   granularity: 'week',
+ * //   buckets: [
+ * //     { period: '2026-01-05', quantity: 14 }, // the 5th and 7th are one week
+ * //     { period: '2026-01-12', quantity: 0 },  // zero-filled, not omitted
+ * //     { period: '2026-01-19', quantity: 6 },
+ * //   ],
+ * // }]
+ *
+ * // Pass start/end to align every item to one calendar rather than its own span.
+ * bucketize(records, 'week', { start: '2026-01-01', end: '2026-03-31' })
+ * ```
  */
 export function bucketize(
   records: readonly DemandRecord[],

@@ -41,7 +41,24 @@ interface Vertex {
   fx: number
 }
 
-/** Minimises `f` starting from `x0` using the Nelder–Mead simplex method. */
+/**
+ * Minimises `f` starting from `x0` using the Nelder–Mead simplex method.
+ *
+ * Derivative-free, so it suits objectives that are not differentiable in closed
+ * form — this library uses it to fit smoothing parameters by minimising forecast
+ * error. It finds a LOCAL minimum: a multi-modal objective needs several starts.
+ *
+ * @example
+ * ```ts
+ * // Minimise (x - 3)^2 + (y + 1)^2, whose exact minimum is (3, -1).
+ * const result = nelderMead((v) => (v[0] - 3) ** 2 + (v[1] + 1) ** 2, [0, 0])
+ *
+ * result.x          // [3.000024299792811, -1.000017321997305]
+ * result.fx         // 8.905315212824712e-10
+ * result.converged  // true
+ * result.iterations // 44
+ * ```
+ */
 export function nelderMead(
   f: Objective,
   x0: readonly number[],

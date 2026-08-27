@@ -1,5 +1,15 @@
 # @logistics-ts/forecasting
 
+## 0.2.0
+
+### Patch Changes
+
+- Updated dependencies [0103a19]
+- Updated dependencies [5911d36]
+- Updated dependencies [1aafb4d]
+  - @logistics-ts/core@0.2.0
+  - @logistics-ts/classification@0.2.0
+
 ## 0.1.1
 
 ### Patch Changes

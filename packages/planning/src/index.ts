@@ -1,7 +1,7 @@
 /**
- * @logistics-ts/planning — MRP planning for logistics-ts: lot-sizing rules and
- * the single-item time-phased netting grid. BOM explosion and multi-level MRP
- * are **not** shipped yet — do not read this doc as promising them.
+ * @logistics-ts/planning — MRP planning for logistics-ts: lot-sizing rules, the
+ * time-phased netting grid, and multi-level MRP via BOM explosion. Capacity
+ * planning (CRP) is **not** shipped — MRP is infinite-capacity by definition.
  *
  * This is the layer-3.5 planning package: it may import inward from `inventory`,
  * `forecasting`, `classification`, and `core`, and turns per-period demand into
@@ -24,6 +24,19 @@
  * net-requirements series to whichever rule the caller selects.
  */
 export { type Explained, explain } from '@logistics-ts/core'
+export { explode } from './bom/explode'
+export { type MasterScheduleSeries, toMasterSchedule } from './bom/master-schedule'
+export { planRequirements } from './bom/plan-requirements'
+export type {
+  Explosion,
+  ExplosionResult,
+  ItemPlan,
+  ItemPlanningData,
+  ItemRequirements,
+  MultiLevelPlan,
+  PlanRequirementsInput,
+  RequirementsPlan,
+} from './bom/types'
 export { accumulateLotCost, type LotSizingCost, simulateLotCost } from './lot-sizing/cost'
 export {
   type FixedOrderQuantityOptions,

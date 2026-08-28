@@ -64,6 +64,10 @@ describe('simulatePolicy', () => {
       expect(rows.map((r) => r.ordered)).toEqual([0, 0, 40, 0, 0, 0])
       expect(rows.map((r) => r.received)).toEqual([0, 0, 0, 40, 0, 0])
       expect(sim.value.averageOnHand).toBeCloseTo(35, 10)
+      // (40 + 30 + 60 + 50 + 40 + 30) / 6. Asserted because averageOnHand and
+      // averageInventoryPosition are computed by the same accumulate-and-divide
+      // shape, so a mistake in one is very likely present in the other.
+      expect(sim.value.averageInventoryPosition).toBeCloseTo(250 / 6, 10)
     })
 
     // A stockout with backorders. onHand 20, s=10, Q=20, L=2.

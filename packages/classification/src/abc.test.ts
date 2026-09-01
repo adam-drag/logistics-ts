@@ -19,6 +19,10 @@ describe('abc by value', () => {
     expect(classOf(value, 'C')).toBe('A') // cumulative 0.769 before it
     expect(classOf(value, 'B')).toBe('B') // cumulative 0.923 before it
     expect(classOf(value, 'D')).toBe('C') // cumulative ~1.0 before it
+    // `metric` is the ranked quantity the classes were cut from, reported so a
+    // caller can see WHY an item landed where it did. No test read it, so the
+    // classes could have been right while the reported basis was wrong.
+    expect(value.map((r) => r.metric)).toEqual([5000, 1000, 500, 1])
   })
 
   it('returns shares that sum to 1 and a final cumulative share of 1', () => {

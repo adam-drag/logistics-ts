@@ -18,6 +18,18 @@ describe('seasonalDecompose additive (constructed, exact recovery)', () => {
     expect(value.seasonalIndices.reduce((s, v) => s + v, 0)).toBeCloseTo(0, 10)
   })
 
+  it('repeats the seasonal indices across the whole series as the seasonal component', () => {
+    // `seasonal` was the one documented output of this function that no test
+    // read: trend, remainder and seasonalIndices were all pinned and this was
+    // not. It is the indices tiled over the series, so the relationship is
+    // exact and needs no tolerance.
+    const { value } = seasonalDecompose(series, { seasonLength: m })
+    expect(value.seasonal).toHaveLength(series.length)
+    for (let t = 0; t < series.length; t++) {
+      expect(value.seasonal[t]).toBe(value.seasonalIndices[t % m])
+    }
+  })
+
   it('recovers the linear trend in the interior and leaves ~zero remainder', () => {
     const { value } = seasonalDecompose(series, { seasonLength: m })
     // interior trend point t=4 should equal 10+4 = 14

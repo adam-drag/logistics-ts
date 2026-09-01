@@ -21,6 +21,11 @@ describe('coverage', () => {
     const result = coverage(stock, demand)
     expect(rowFor(result.value, 'A')?.daysOfInventory).toBe(10)
     expect(result.method).toBe('coverage-historical-mean')
+    // The two inputs daysOfInventory is derived from are reported on the row so
+    // a caller can audit the division. Nothing asserted them, so a row could
+    // have carried the right quotient over the wrong operands.
+    expect(rowFor(result.value, 'A')?.stockOnHand).toBe(40)
+    expect(rowFor(result.value, 'A')?.meanDemandPerPeriod).toBeCloseTo(4, 12)
   })
 
   it('is 0, not NaN, when there is no stock or no demand', () => {

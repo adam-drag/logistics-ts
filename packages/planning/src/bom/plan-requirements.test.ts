@@ -14,6 +14,30 @@ describe('planRequirements', () => {
     expect(plan.value.items.B?.rows.map((r) => r.plannedOrderRelease)).toEqual([20, 0, 0, 0])
   })
 
+  it('echoes each item’s low-level code consistently with the structure-wide map', () => {
+    // ItemPlan.lowLevelCode is the per-item echo of MultiLevelPlan.lowLevelCodes.
+    // Tests pinned the map but never the echo, so the two could disagree — and
+    // the echo is what a consumer reading one item's plan actually sees.
+    // Diamond: C hangs off both A and B, so its code is the LONGEST path (2).
+    const plan = planRequirements({
+      bom: [
+        { parentId: 'A', childId: 'B', quantityPer: 1 },
+        { parentId: 'B', childId: 'C', quantityPer: 1 },
+        { parentId: 'A', childId: 'C', quantityPer: 1 },
+      ],
+      masterSchedule: [{ itemId: 'A', requirements: [0, 0, 10] }],
+      items: { A: { leadTimePeriods: 1 }, B: { leadTimePeriods: 1 }, C: { leadTimePeriods: 1 } },
+    })
+    expect(plan.value.lowLevelCodes).toEqual({ A: 0, B: 1, C: 2 })
+    for (const [itemId, item] of Object.entries(plan.value.items)) {
+      expect(item.lowLevelCode).toBe(plan.value.lowLevelCodes[itemId])
+    }
+    // And the planning order must be non-decreasing in low-level code: a parent
+    // is always planned before anything that consumes its releases.
+    const codes = plan.value.order.map((id) => plan.value.lowLevelCodes[id] ?? -1)
+    expect(codes).toEqual([...codes].sort((a, b) => a - b))
+  })
+
   it('drives components from the parent RELEASE, not its gross requirement', () => {
     // THE decisive test — it separates real MRP from a naive explosion, and it
     // fails in BOTH quantity and timing if you get it wrong.

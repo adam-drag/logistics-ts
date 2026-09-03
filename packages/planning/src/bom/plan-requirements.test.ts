@@ -18,24 +18,32 @@ describe('planRequirements', () => {
     // ItemPlan.lowLevelCode is the per-item echo of MultiLevelPlan.lowLevelCodes.
     // Tests pinned the map but never the echo, so the two could disagree — and
     // the echo is what a consumer reading one item's plan actually sees.
-    // Diamond: C hangs off both A and B, so its code is the LONGEST path (2).
+    // Diamond: M hangs off both Z and A, so its code is the LONGEST path (2).
+    //
+    // The ids are deliberately NOT alphabetical in planning order. Codes are
+    // Z:0, A:1, M:2, so `order` must be [Z, A, M] while sorting the ids by name
+    // would give [A, M, Z]. An earlier version of this test used A/B/C, where
+    // the two orders coincide — which made the ordering assertion below
+    // unfalsifiable: replacing the comparator in plan-requirements.ts with a
+    // plain `a.localeCompare(b)` passed the entire planning suite. Keep the
+    // names disagreeing with the codes or the assertion stops guarding anything.
     const plan = planRequirements({
       bom: [
-        { parentId: 'A', childId: 'B', quantityPer: 1 },
-        { parentId: 'B', childId: 'C', quantityPer: 1 },
-        { parentId: 'A', childId: 'C', quantityPer: 1 },
+        { parentId: 'Z', childId: 'A', quantityPer: 1 },
+        { parentId: 'A', childId: 'M', quantityPer: 1 },
+        { parentId: 'Z', childId: 'M', quantityPer: 1 },
       ],
-      masterSchedule: [{ itemId: 'A', requirements: [0, 0, 10] }],
-      items: { A: { leadTimePeriods: 1 }, B: { leadTimePeriods: 1 }, C: { leadTimePeriods: 1 } },
+      masterSchedule: [{ itemId: 'Z', requirements: [0, 0, 10] }],
+      items: { Z: { leadTimePeriods: 1 }, A: { leadTimePeriods: 1 }, M: { leadTimePeriods: 1 } },
     })
-    expect(plan.value.lowLevelCodes).toEqual({ A: 0, B: 1, C: 2 })
+    expect(plan.value.lowLevelCodes).toEqual({ Z: 0, A: 1, M: 2 })
     for (const [itemId, item] of Object.entries(plan.value.items)) {
       expect(item.lowLevelCode).toBe(plan.value.lowLevelCodes[itemId])
     }
-    // And the planning order must be non-decreasing in low-level code: a parent
-    // is always planned before anything that consumes its releases.
-    const codes = plan.value.order.map((id) => plan.value.lowLevelCodes[id] ?? -1)
-    expect(codes).toEqual([...codes].sort((a, b) => a - b))
+    // The planning order must be sorted by low-level code, so a parent is always
+    // planned before anything that consumes its releases. Asserted exactly, not
+    // as a "non-decreasing" predicate, so the alphabetical order is excluded.
+    expect(plan.value.order).toEqual(['Z', 'A', 'M'])
   })
 
   it('drives components from the parent RELEASE, not its gross requirement', () => {
@@ -268,6 +276,40 @@ describe('planRequirements', () => {
           masterSchedule: [{ itemId: 7 as unknown as string, requirements: [1] }],
         }),
       ).toThrow(/masterSchedule\[0\]\.itemId must be a string/)
+    })
+
+    // The three guards below sit two lines from guards that WERE asserted, and
+    // were themselves asserted by nothing: disabling any one of them broke no
+    // test. validate.ts exists because a hand-trimmed copy of these checks once
+    // let planRequirements accept a NaN quantityPer and read schedule holes as
+    // zero demand, so asymmetric coverage inside it is the same hazard again.
+    it('rejects a non-object BOM line rather than reading its fields as undefined', () => {
+      expect(() =>
+        planRequirements({
+          bom: [null as unknown as { parentId: string; childId: string; quantityPer: number }],
+          masterSchedule: [{ itemId: 'A', requirements: [1] }],
+        }),
+      ).toThrow(/bom\[0\] must be a BOM line object/)
+    })
+
+    it('rejects a non-object master-schedule entry', () => {
+      expect(() =>
+        planRequirements({
+          bom: [],
+          masterSchedule: [null as unknown as { itemId: string; requirements: number[] }],
+        }),
+      ).toThrow(/masterSchedule\[0\] must be an object/)
+    })
+
+    it('rejects a non-array requirements series instead of iterating a string', () => {
+      // A string is the dangerous case: it has a length and numeric indices, so
+      // without this guard 'x' would be walked character by character.
+      expect(() =>
+        planRequirements({
+          bom: [],
+          masterSchedule: [{ itemId: 'A', requirements: 'x' as unknown as number[] }],
+        }),
+      ).toThrow(/masterSchedule\[0\]\.requirements must be an array/)
     })
   })
 

@@ -164,8 +164,10 @@ describe('aggregateItems', () => {
       // and a wrong entry silently rescales every reorder point built on it.
       expect(DAYS_PER_PERIOD.day).toBe(1)
       expect(DAYS_PER_PERIOD.week).toBe(7)
-      expect(DAYS_PER_PERIOD.month).toBeCloseTo(30.4166666, 6)
-      // Consistent with turnover.ts's annualisation: 12 months make a 365-day year.
+      // Exact, so the intent is unambiguous — a toBeCloseTo(30.4166666, 6) here
+      // would admit ±5e-7 of drift in a constant that has an exact value.
+      expect(DAYS_PER_PERIOD.month).toBe(365 / 12)
+      // Cross-check against turnover.ts's annualisation: 12 months = a 365-day year.
       expect(DAYS_PER_PERIOD.month * 12).toBeCloseTo(365, 10)
     })
   })
@@ -175,7 +177,10 @@ describe('aggregateItems', () => {
       expect(aggregateItems([], [])).toEqual([])
     })
 
-    it('treats a zero-quantity stock record as an item that exists with no stock', () => {
+    // Named for what is actually observable. There is no output that separates
+    // "the zero record contributed 0" from "the zero record was skipped and the
+    // id came from the union", so the test does not claim to tell them apart.
+    it('gives an item whose only stock record is zero a row with zero stock', () => {
       const rows = aggregateItems([{ itemId: 'Z', quantity: 0 }], [])
       expect(rows).toHaveLength(1)
       expect(rows[0]?.stockOnHand).toBe(0)

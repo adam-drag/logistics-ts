@@ -78,6 +78,17 @@ describe('coverage', () => {
       expect(result.warnings?.some((w) => w.includes('dead'))).toBe(true)
     })
 
+    it('skips the walk WITHOUT warning for an item that has demand but no stock', () => {
+      // The other half of the same short-circuit: no-demand-history warns (above),
+      // zero-stock returns silently. Untested, so the no-demand warning could
+      // have fired here and named a cause that did not apply — the item has a
+      // full demand history, it simply has nothing left to deplete.
+      const result = coverage([stockOf('A', 0)], demandOf('A', [4, 4, 4]), { forecastWalk: true })
+      const row = rowFor(result.value, 'A')
+      expect(row?.forecastWalkDays).toBeUndefined()
+      expect(result.warnings?.some((w) => /no demand history/.test(w))).not.toBe(true)
+    })
+
     it('warns when depletion does not occur within the horizon', () => {
       const stock = [stockOf('A', 1_000_000)]
       const demand = demandOf('A', [1, 1, 1, 1, 1])

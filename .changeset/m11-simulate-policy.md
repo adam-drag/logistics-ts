@@ -27,6 +27,14 @@ time, and `0` would be a second spelling of `1`. This is a stricter domain than
 the `leadTimePeriods` of `mrpGrid` / `planRequirements` in
 `@logistics-ts/planning`, where `0` is valid.
 
+`cycleServiceLevel` counts only **completed** cycles — a cycle runs from the
+start of the path, or an arrival, to the next arrival. The cycle still open when
+the path ends never closes, so a stockout stranded inside it is excluded, and a
+warning says so; without one, α reads as a clean `1` on a run that demonstrably
+went short. A run where no cycle completed at all also warns, worded per cause:
+no order was placed, versus orders were placed but none arrived in the horizon.
+Read α alongside `stockoutPeriods`, never on its own.
+
 Unmet demand is backordered by default, or can be treated as lost sales. Lost
 sales emits a warning that the realised fill rate is then **not** comparable to
 the analytic `fillRate()`, which assumes backordering.

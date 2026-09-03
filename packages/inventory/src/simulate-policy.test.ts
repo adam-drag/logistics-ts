@@ -164,6 +164,25 @@ describe('simulatePolicy', () => {
     expect(sim.value.rows[0]?.inventoryPosition).toBe(5)
   })
 
+  it('orders one lot MORE when the deficit is an exact multiple of Q', () => {
+    // The boundary that distinguishes `floor(deficit / Q) + 1` from
+    // `ceil(deficit / Q)`: they agree everywhere except here. Deficit 50 = 2 × Q,
+    // so ceil would order 50 and leave the position exactly AT s = 0 — which the
+    // `position > reorderPoint` trigger reads as still due, so the next period
+    // would re-order immediately. Ordering 3 lots lifts it strictly above s.
+    // The existing deep-deficit test above uses 70/25, a non-multiple, so it
+    // cannot tell the two formulas apart.
+    const sim = simulatePolicy({
+      demand: [80],
+      policy: { policy: '(s,Q)', reorderPoint: 0, orderQuantity: 25 },
+      initialOnHand: 30,
+      leadTimePeriods: 1,
+    })
+    // position after demand = 0 on-hand − 50 backorders = −50 = −2Q exactly.
+    expect(sim.value.rows[0]?.ordered).toBe(75)
+    expect(sim.value.rows[0]?.inventoryPosition).toBe(25)
+  })
+
   describe('lost sales', () => {
     it('never accrues backorders and reports the shortfall as gone', () => {
       const sim = simulatePolicy({
@@ -491,6 +510,76 @@ describe('simulatePolicy', () => {
       })
       expect(sim.value.orderCount).toBeGreaterThan(0)
       expect(sim.warnings?.some((w) => /none arrived within/i.test(w))).toBe(true)
+    })
+
+    // The three cases below are why cycleServiceLevel must never be read alone.
+    // A review of this PR found alpha reporting a clean 1 on runs that
+    // demonstrably went short, in both directions, with no warning at all.
+    it('warns per-cause when NO order was placed, rather than blaming the horizon', () => {
+      // Previously the "orders placed but none arrived" warning was gated on
+      // orderCount > 0, so a run that never ordered got alpha = 1 in silence —
+      // the case most in need of a warning. The two causes need different fixes
+      // (policy parameters vs. a longer path), so they are worded separately.
+      const sim = simulatePolicy({
+        demand: [50, 50],
+        policy: { policy: '(s,Q)', reorderPoint: -1000, orderQuantity: 10 },
+        initialOnHand: 0,
+      })
+      expect(sim.value.orderCount).toBe(0)
+      expect(sim.value.stockoutPeriods).toBe(2)
+      expect(sim.value.cycleServiceLevel).toBe(1)
+      const w = sim.warnings?.join(' ') ?? ''
+      expect(w).toMatch(/no replenishment order was placed/i)
+      expect(w).toMatch(/2 period\(s\) going short/i)
+      expect(w).not.toMatch(/none arrived within/i)
+    })
+
+    it('warns when a stockout is stranded in the cycle still open at the end', () => {
+      // One clean cycle completes at the period-2 arrival; the period-4 stockout
+      // falls in the cycle that never closes, so it is excluded from alpha.
+      // Reporting 1 next to a nonzero stockoutPeriods without saying so is
+      // exactly the confidently-wrong output the Explained contract exists for.
+      const sim = simulatePolicy({
+        demand: [0, 0, 0, 0, 100],
+        policy: { policy: '(R,S)', reviewPeriods: 100, orderUpToLevel: 10 },
+        leadTimePeriods: 2,
+      })
+      expect(sim.value.cycleServiceLevel).toBe(1)
+      expect(sim.value.stockoutPeriods).toBe(1)
+      expect(sim.warnings?.some((w) => /never closed inside the horizon/i.test(w))).toBe(true)
+    })
+
+    it('reports a fractional alpha over several completed cycles', () => {
+      // Nothing exercised alpha between 0 and 1: the only assertions were toBe(0)
+      // and a warning regex, so the ratio itself was never checked.
+      //
+      // (R,S) R=1, S=10, L=1 → an order every period, so an arrival every period
+      // from t=1 on. Cycles close at t=1,2,3,4 (four completed; the fifth opens
+      // at t=4 and never closes). Demand is 5/period except a 40 spike at t=2,
+      // which exhausts on-hand and leaves the cycle open at t=2 short.
+      const sim = simulatePolicy({
+        demand: [5, 5, 40, 5, 5],
+        policy: { policy: '(R,S)', reviewPeriods: 1, orderUpToLevel: 10 },
+        initialOnHand: 10,
+        leadTimePeriods: 1,
+      })
+      expect(sim.value.stockoutPeriods).toBeGreaterThan(0)
+      // Derived from the row record rather than hard-coded, so the assertion
+      // states the RELATIONSHIP alpha must satisfy: it is the share of closed
+      // cycles that saw no shortfall.
+      const arrivals = sim.value.rows.filter((r) => r.received > 0).map((r) => r.period)
+      const completed = arrivals.length
+      const shortPeriods = sim.value.rows.filter((r) => r.short > 0).map((r) => r.period)
+      // A closed cycle spans [previous arrival (or 0), this arrival).
+      let clean = 0
+      let start = 0
+      for (const a of arrivals) {
+        if (!shortPeriods.some((p) => p >= start && p < a)) clean++
+        start = a
+      }
+      expect(completed).toBeGreaterThan(2)
+      expect(clean).toBeLessThan(completed)
+      expect(sim.value.cycleServiceLevel).toBeCloseTo(clean / completed, 12)
     })
 
     it('rejects invalid demand, stock, lead time and policy parameters', () => {

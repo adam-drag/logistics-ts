@@ -141,8 +141,15 @@ export interface PolicyPerformance {
   fillRate: number
   /**
    * Realised cycle service level (Type-1, α): the fraction of replenishment
-   * cycles that ended without a stockout. A cycle runs from one order arrival
-   * to the next. `1` when no cycle completed.
+   * cycles that ended without a stockout. A cycle runs from the start of the
+   * demand path, or from an order arrival, to the next arrival.
+   *
+   * **Only completed cycles count.** The cycle still open when the path ends
+   * never closes, so a stockout inside it is excluded from this figure — a
+   * `warnings` entry says so when that happens, because α would otherwise read
+   * as clean on a run that demonstrably went short. `1` when no cycle completed
+   * at all, also with a warning. Read it alongside {@link stockoutPeriods}
+   * rather than on its own.
    */
   cycleServiceLevel: number
   /** Mean end-of-period on-hand stock (units). */
@@ -237,10 +244,12 @@ export function simulatePolicy(input: SimulatePolicyInput): Explained<PolicyPerf
   validatePolicy(policy)
 
   const horizon = demand.length
-  // Arrivals indexed by the period they land in. Sized to cover orders placed
-  // in the final period, which arrive beyond the horizon and are never received
-  // — they still count as on-order for the position, which is correct.
-  const arrivals = new Array<number>(horizon + leadTimePeriods + 1).fill(0)
+  // Arrivals indexed by the period they land in. The largest index ever written
+  // is `horizon - 1 + leadTimePeriods`, by an order placed in the final period;
+  // that slot is never read, because such an order arrives beyond the horizon
+  // and is never received. It still counts as on-order for the position, which
+  // is correct.
+  const arrivals = new Array<number>(horizon + leadTimePeriods).fill(0)
 
   let onHand = initialOnHand
   let backorders = 0
@@ -252,9 +261,11 @@ export function simulatePolicy(input: SimulatePolicyInput): Explained<PolicyPerf
   let onHandSum = 0
   let positionSum = 0
 
-  // A "cycle" runs from one order arrival to the next; it counts as a stockout
-  // cycle if any demand went unmet while it was open. This is the realised
-  // analogue of the alpha that `safetyStock` targets.
+  // A "cycle" runs from the start of the path, or from an order arrival, to the
+  // next arrival; it counts as a stockout cycle if any demand went unmet while
+  // it was open. The cycle still open when the path ends is never closed and so
+  // never counted — `warnings` reports a stockout stranded there. This is the
+  // realised analogue of the alpha that `safetyStock` targets.
   let cyclesCompleted = 0
   let cyclesWithStockout = 0
   let currentCycleStockedOut = false
@@ -328,9 +339,22 @@ export function simulatePolicy(input: SimulatePolicyInput): Explained<PolicyPerf
       'unmetDemand is lost-sales, so unmet demand vanishes rather than being carried — the realised fillRate is NOT comparable to the analytic fillRate(), which assumes backordering',
     )
   }
-  if (cyclesCompleted === 0 && orderCount > 0) {
+  if (cyclesCompleted === 0) {
+    // Worded per-cause: "no orders were placed" and "orders were placed but
+    // none landed" are different diagnoses with different fixes, and the second
+    // one used to be reported for both. The `orderCount > 0` gate that made it
+    // so also silenced the warning entirely for a run that never ordered, which
+    // is the case most in need of it.
     warnings.push(
-      `${orderCount} order(s) were placed but none arrived within the ${horizon}-period horizon (lead time ${leadTimePeriods}), so cycleServiceLevel is reported as 1 on no evidence — lengthen the demand path`,
+      orderCount === 0
+        ? `no replenishment order was placed over the ${horizon}-period horizon, so no cycle completed and cycleServiceLevel is reported as 1 on no evidence${stockoutPeriods > 0 ? ` despite ${stockoutPeriods} period(s) going short` : ''} — check the policy parameters against the demand path`
+        : `${orderCount} order(s) were placed but none arrived within the ${horizon}-period horizon (lead time ${leadTimePeriods}), so no cycle completed and cycleServiceLevel is reported as 1 on no evidence — lengthen the demand path`,
+    )
+  } else if (currentCycleStockedOut) {
+    // The cycle open at the end of the path never closes, so its stockout is
+    // not in `cyclesWithStockout` and alpha would otherwise read as clean.
+    warnings.push(
+      `demand went unmet after the last order arrival, in a cycle that never closed inside the horizon — cycleServiceLevel ${round(cycleServiceLevel)} covers only the ${cyclesCompleted} completed cycle(s) and excludes that stockout`,
     )
   }
   if (totalDemand === 0) {
@@ -366,7 +390,7 @@ export function simulatePolicy(input: SimulatePolicyInput): Explained<PolicyPerf
         'each period receives due orders (which clear backorders first), then meets demand from on-hand, then reviews — so an order placed this period reflects demand already served',
         'ordering decisions use the INVENTORY POSITION (on-hand + on-order − backorders), not on-hand, so stock already in transit is never ordered twice',
         `realised fill rate ${round(fillRate)} = ${round(totalDemand - totalUnitsShort)} of ${round(totalDemand)} demanded unit(s) served from stock; ${totalUnitsShort > 0 ? `${round(totalUnitsShort)} unit(s) short across ${stockoutPeriods} period(s)` : 'no period went short'}`,
-        `realised cycle service level ${round(cycleServiceLevel)} over ${cyclesCompleted} completed cycle(s) (a cycle runs between order arrivals and counts as a miss if any demand went unmet while open)`,
+        `realised cycle service level ${round(cycleServiceLevel)} over ${cyclesCompleted} completed cycle(s) (a cycle runs from the path start or an arrival to the next arrival, counts as a miss if any demand went unmet while open, and an unclosed final cycle is excluded)`,
         `${orderCount} order(s) placed; average on-hand ${round(averageOnHand)}, average inventory position ${round(averageInventoryPosition)}`,
       ],
       citations: [SPT_CITATION],

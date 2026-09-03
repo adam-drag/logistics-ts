@@ -48,6 +48,16 @@ describe('croston/sba edge cases', () => {
     const r = croston([0, 0, 0], { alpha: 0.3 })
     expect(r.value.forecast).toEqual([0])
     expect(r.warnings?.[0]).toMatch(/no demand/)
+    // `occurrences` is reported to agents as the evidence behind the zero, and
+    // nothing asserted it. It is the count that decides which branch of the
+    // reasoning fires, so a wrong value would explain the forecast wrongly.
+    expect(r.inputs.occurrences).toBe(0)
+  })
+
+  it('reports the number of demand occurrences it smoothed over', () => {
+    // Two non-zero periods in [0, 5, 0, 0, 7].
+    expect(croston([0, 5, 0, 0, 7], { alpha: 0.5 }).inputs.occurrences).toBe(2)
+    expect(sba([0, 0, 5, 0], { alpha: 0.3 }).inputs.occurrences).toBe(1)
   })
 
   it('warns on a single demand occurrence', () => {

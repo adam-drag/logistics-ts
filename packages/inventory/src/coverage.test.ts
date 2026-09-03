@@ -21,6 +21,11 @@ describe('coverage', () => {
     const result = coverage(stock, demand)
     expect(rowFor(result.value, 'A')?.daysOfInventory).toBe(10)
     expect(result.method).toBe('coverage-historical-mean')
+    // The two inputs daysOfInventory is derived from are reported on the row so
+    // a caller can audit the division. Nothing asserted them, so a row could
+    // have carried the right quotient over the wrong operands.
+    expect(rowFor(result.value, 'A')?.stockOnHand).toBe(40)
+    expect(rowFor(result.value, 'A')?.meanDemandPerPeriod).toBeCloseTo(4, 12)
   })
 
   it('is 0, not NaN, when there is no stock or no demand', () => {
@@ -71,6 +76,17 @@ describe('coverage', () => {
       const row = rowFor(result.value, 'dead')
       expect(row?.forecastWalkDays).toBeUndefined()
       expect(result.warnings?.some((w) => w.includes('dead'))).toBe(true)
+    })
+
+    it('skips the walk WITHOUT warning for an item that has demand but no stock', () => {
+      // The other half of the same short-circuit: no-demand-history warns (above),
+      // zero-stock returns silently. Untested, so the no-demand warning could
+      // have fired here and named a cause that did not apply — the item has a
+      // full demand history, it simply has nothing left to deplete.
+      const result = coverage([stockOf('A', 0)], demandOf('A', [4, 4, 4]), { forecastWalk: true })
+      const row = rowFor(result.value, 'A')
+      expect(row?.forecastWalkDays).toBeUndefined()
+      expect(result.warnings?.some((w) => /no demand history/.test(w))).not.toBe(true)
     })
 
     it('warns when depletion does not occur within the horizon', () => {

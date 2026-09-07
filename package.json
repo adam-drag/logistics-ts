@@ -34,16 +34,16 @@
     "examples": "pnpm example:quickstart && pnpm example:forecast-replenish && pnpm example:inventory-analysis && pnpm example:mrp"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.3",
-    "@changesets/cli": "^2.27.9",
-    "@types/node": "^26.1.1",
-    "@vitest/coverage-v8": "4.1.10",
-    "dependency-cruiser": "^17.4.3",
+    "@biomejs/biome": "^2.5.12",
+    "@changesets/cli": "^3.0.2",
+    "@types/node": "^26.4.1",
+    "@vitest/coverage-v8": "5.0.0",
+    "dependency-cruiser": "^18.2.0",
     "fast-check": "^4.9.0",
     "tsup": "^8",
-    "tsx": "^4.23.1",
-    "typescript": "^5.7.2",
-    "vitest": "4.1.10"
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vitest": "5.0.0"
   },
   "pnpm": {
     "overrides": {

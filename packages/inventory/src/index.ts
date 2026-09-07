@@ -43,4 +43,12 @@ export {
   type SafetyStockOptions,
   safetyStock,
 } from './safety-stock'
+export {
+  type PolicyOptions,
+  type PolicyPerformance,
+  type PolicyRow,
+  type SimulatePolicyInput,
+  simulatePolicy,
+  type UnmetDemandMode,
+} from './simulate-policy'
 export { type TurnoverOptions, type TurnoverRow, turnover } from './turnover'

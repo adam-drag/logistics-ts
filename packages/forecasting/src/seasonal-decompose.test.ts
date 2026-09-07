@@ -18,6 +18,36 @@ describe('seasonalDecompose additive (constructed, exact recovery)', () => {
     expect(value.seasonalIndices.reduce((s, v) => s + v, 0)).toBeCloseTo(0, 10)
   })
 
+  it('reports the seasonal component the series was constructed from', () => {
+    // `seasonal` was the one documented output no test read — trend, remainder
+    // and seasonalIndices were all pinned and this was not.
+    //
+    // Asserted against the pattern the FIXTURE was built from ([-2, 0, 2]), not
+    // against `seasonalIndices[t % m]`. The latter is the implementation's own
+    // line re-typed, so it is derivable from that one line and could not
+    // constrain anything else; this compares against ground truth chosen before
+    // the function ran.
+    const { value } = seasonalDecompose(series, { seasonLength: m })
+    expect(value.seasonal).toHaveLength(series.length)
+    for (let t = 0; t < series.length; t++) {
+      expect(value.seasonal[t]).toBeCloseTo([-2, 0, 2][t % m] as number, 6)
+    }
+  })
+
+  it('reconstructs the original series additively from its three components', () => {
+    // trend + seasonal + remainder === series wherever trend is defined. This is
+    // the contract that spans all three outputs at once, and no test made it —
+    // each component was checked in isolation, so a consistent mis-split between
+    // seasonal and remainder would have gone unnoticed.
+    const { value } = seasonalDecompose(series, { seasonLength: m })
+    for (let t = 0; t < series.length; t++) {
+      if (Number.isNaN(value.trend[t] as number)) continue
+      const rebuilt =
+        (value.trend[t] as number) + (value.seasonal[t] as number) + (value.remainder[t] as number)
+      expect(rebuilt).toBeCloseTo(series[t] as number, 6)
+    }
+  })
+
   it('recovers the linear trend in the interior and leaves ~zero remainder', () => {
     const { value } = seasonalDecompose(series, { seasonLength: m })
     // interior trend point t=4 should equal 10+4 = 14

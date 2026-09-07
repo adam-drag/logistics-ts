@@ -39,6 +39,19 @@ describe('turnover', () => {
     expect(result.warnings?.some((w) => w.includes('A'))).toBe(true)
   })
 
+  it('is 0 turnover and does NOT warn when an item has neither stock nor demand', () => {
+    // The both-zero case: stockOnHand 0 with annualizedDemand 0. The sibling
+    // branch (demand but no stock) warns and was tested; this silent one was
+    // not, so the "has demand but no stock" warning could have fired for an
+    // item that has no demand either — a warning naming a cause that did not
+    // happen, which is the defect class this repo has caught most often.
+    const result = turnover([stockOf('empty', 0)], [])
+    const row = rowFor(result.value, 'empty')
+    expect(row?.turnoverRatio).toBe(0)
+    expect(row?.daysInventoryOutstanding).toBe(Number.POSITIVE_INFINITY)
+    expect(result.warnings?.some((w) => w.includes('empty'))).not.toBe(true)
+  })
+
   it('returns an empty result for empty input without throwing', () => {
     expect(turnover([], []).value).toEqual([])
   })

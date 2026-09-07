@@ -17,6 +17,7 @@
     "build": "pnpm -r run build",
     "test": "vitest run",
     "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
     "typecheck": "pnpm -r run typecheck",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
@@ -36,12 +37,13 @@
     "@biomejs/biome": "^2.5.3",
     "@changesets/cli": "^2.27.9",
     "@types/node": "^26.1.1",
+    "@vitest/coverage-v8": "4.1.10",
     "dependency-cruiser": "^17.4.3",
     "fast-check": "^4.9.0",
     "tsup": "^8",
     "tsx": "^4.23.1",
     "typescript": "^5.7.2",
-    "vitest": "^4.1.10"
+    "vitest": "4.1.10"
   },
   "pnpm": {
     "overrides": {

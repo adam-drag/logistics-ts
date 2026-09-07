@@ -15,3 +15,6 @@ plans/
 
 # dev-loop skill scratch state (orchestration state machine — not source)
 .dev-loop/
+
+# vitest coverage output (measured on demand via `pnpm coverage`, not gated in CI)
+coverage/

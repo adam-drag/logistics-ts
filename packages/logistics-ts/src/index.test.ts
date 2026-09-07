@@ -72,6 +72,27 @@ describe('logistics-ts umbrella', () => {
     expect(() => analyzer.safetyStock('B', { serviceLevel: 0.95 })).toThrow(/no lead-time records/)
   })
 
+  it('omits leadTimeStdDev entirely when a single lead-time record makes it NaN', () => {
+    // standardDeviation of one observation is NaN, and NaN passes `!== undefined`.
+    // The conditional spread in inventory-analyzer.ts exists because of exactly
+    // that earlier finding, and deleting the guard broke no test — so the NaN
+    // could have reached safetyStock and come back as a NaN result.
+    const analyzer = new InventoryAnalyzer({
+      demand: [
+        { itemId: 'S', date: '2026-01-01', quantity: 10 },
+        { itemId: 'S', date: '2026-01-02', quantity: 12 },
+        { itemId: 'S', date: '2026-01-03', quantity: 8 },
+      ],
+      stock: [{ itemId: 'S', quantity: 20 }],
+      leadTimes: [{ itemId: 'S', leadTimeDays: 5 }],
+    })
+    const ss = analyzer.safetyStock('S', { serviceLevel: 0.95 })
+    expect(Number.isFinite(ss.value)).toBe(true)
+    // Absent from the reported inputs, not present-as-NaN. An agent reading the
+    // explanation must not be told the deviation was zero or unknown-but-numeric.
+    expect('leadTimeStdDev' in ss.inputs).toBe(false)
+  })
+
   describe('InventoryAnalyzer.plan', () => {
     // Stock and lead times come from the HELD dataset — that is the whole point
     // of planning through the analyzer rather than calling planRequirements.

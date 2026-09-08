@@ -44,6 +44,17 @@ export {
   safetyStock,
 } from './safety-stock'
 export {
+  type SafetyStockMethodInfo,
+  type SafetyStockMethodKind,
+  type SafetyStockParameterInfo,
+  safetyStockMethods,
+} from './safety-stock-methods'
+export {
+  type SafetyStockPolicyMethod,
+  type SafetyStockPolicyOptions,
+  safetyStockPolicy,
+} from './safety-stock-policy'
+export {
   type PolicyOptions,
   type PolicyPerformance,
   type PolicyRow,

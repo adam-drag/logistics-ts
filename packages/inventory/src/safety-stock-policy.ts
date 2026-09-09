@@ -19,15 +19,18 @@
  * standard deviation from. Use {@link safetyStockMethods} to present the whole
  * catalogue, statistical and policy alike, with the trade-off attached.
  *
- * @see Silver, E.A., Pyke, D.F. & Thomas, D.J. (2017). Inventory and
- *   Production Management in Supply Chains, 4th ed. — days-of-supply and
- *   percentage buffers as practical alternatives to statistical safety stock.
+ * **No citations, deliberately.** Every statistical formula in this package
+ * carries a literature reference, and these carry none. They are practitioner
+ * conventions rather than results from a paper: "hold two weeks of cover" is a
+ * business decision, and `fixed` is a person typing a number. An earlier draft
+ * attached Silver, Pyke & Thomas to all three, which was a citation of
+ * convenience — the reference was not checked, and a textbook attribution would
+ * have implied a derivation none of them has. The repo rule is to say so and
+ * stop rather than invent one, so the `citations` field is absent and this
+ * paragraph explains the absence.
  */
 import { type Explained, explain } from '@logistics-ts/core'
 import { round } from './round'
-
-const SPT_CITATION =
-  'Silver, Pyke & Thomas (2017), Inventory and Production Management in Supply Chains'
 
 /** Which policy rule sets the buffer. */
 export type SafetyStockPolicyMethod = 'days-of-supply' | 'fixed' | 'percentage-of-average'
@@ -124,7 +127,6 @@ export function safetyStockPolicy(options: SafetyStockPolicyOptions): Explained<
         `SS = meanDemandPerDay × days = ${round(options.meanDemandPerDay)} × ${options.days} = ${round(value)} unit(s)`,
         `holds ${options.days} day(s) of average demand as cover, regardless of how variable that demand is`,
       ],
-      citations: [SPT_CITATION],
       warnings: [policyWarning],
     })
   }
@@ -138,7 +140,6 @@ export function safetyStockPolicy(options: SafetyStockPolicyOptions): Explained<
         `SS = ${round(options.quantity)} unit(s), set directly rather than derived`,
         'a planner override: the number came from a person, so this function computes nothing and reports what it was given',
       ],
-      citations: [SPT_CITATION],
       warnings: [policyWarning],
     })
   }
@@ -157,7 +158,6 @@ export function safetyStockPolicy(options: SafetyStockPolicyOptions): Explained<
         `SS = meanDemandPerPeriod × bufferPercentage = ${round(options.meanDemandPerPeriod)} × ${options.bufferPercentage} = ${round(value)} unit(s)`,
         `holds ${round(options.bufferPercentage * 100)}% of average demand as cover; the buffer scales with demand level but not with demand variability`,
       ],
-      citations: [SPT_CITATION],
       warnings: [policyWarning],
     })
   }

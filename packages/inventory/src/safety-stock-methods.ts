@@ -29,10 +29,20 @@ export interface SafetyStockParameterInfo {
   description: string
   /** Unit of measure, e.g. `'units/day'`, `'days'`, `'fraction'`. */
   unit: string
-  /** Inclusive lower bound the function enforces, when it has one. */
+  /** Lower bound the function enforces, when it has one. Inclusive unless `minExclusive`. */
   min?: number
-  /** Inclusive upper bound the function enforces, when it has one. */
+  /** Upper bound the function enforces, when it has one. Inclusive unless `maxExclusive`. */
   max?: number
+  /**
+   * `true` when `min` itself is rejected. `serviceLevel` is the case that forced
+   * this field to exist: the catalogue described it as `[0, 1]` while
+   * `safetyStock` enforces the open interval `(0, 1)` and throws on both ends, so
+   * a UI validating against the catalogue accepted two values the function
+   * rejects. Absent means inclusive.
+   */
+  minExclusive?: boolean
+  /** `true` when `max` itself is rejected. Absent means inclusive. */
+  maxExclusive?: boolean
   /** Whether the function throws if this is absent. */
   required: boolean
 }
@@ -63,7 +73,24 @@ const SERVICE_LEVEL: SafetyStockParameterInfo = {
   unit: 'fraction',
   min: 0,
   max: 1,
+  minExclusive: true,
+  maxExclusive: true,
   required: true,
+}
+
+/**
+ * `serviceLevel` as `max-minus-average` sees it: the call will not proceed
+ * without it, but the formula never reads it.
+ *
+ * `safetyStock` validates `serviceLevel` first, before it selects a formula, so
+ * every method needs one supplied even where it does not appear in the
+ * arithmetic. Omitting it here made a catalogue-driven UI under-collect and then
+ * fail at the call.
+ */
+const SERVICE_LEVEL_UNUSED: SafetyStockParameterInfo = {
+  ...SERVICE_LEVEL,
+  description:
+    'Required by the call but NOT used by this formula — safetyStock validates it before selecting a method, and auto may route here',
 }
 
 /**
@@ -195,6 +222,7 @@ const ENTRIES: SafetyStockMethodInfo[] = [
       'You want a buffer justified by observed extremes rather than by a normal assumption',
     ],
     parameters: [
+      SERVICE_LEVEL_UNUSED,
       {
         name: 'meanDemand',
         description: 'Mean demand per period',
@@ -253,7 +281,6 @@ const ENTRIES: SafetyStockMethodInfo[] = [
         required: true,
       },
     ],
-    citation: 'Silver, Pyke & Thomas (2017)',
   },
   {
     id: 'fixed',
@@ -332,5 +359,7 @@ export function safetyStockMethods(kind?: SafetyStockMethodKind): readonly Safet
       `safetyStockMethods: kind must be 'statistical' or 'policy' when given (got ${JSON.stringify(kind)})`,
     )
   }
-  return CATALOGUE.filter((m) => m.kind === kind)
+  // Frozen too. `filter` returns a fresh, plain array, so the filtered branch
+  // silently broke the immutability the TSDoc promises for both.
+  return Object.freeze(CATALOGUE.filter((m) => m.kind === kind))
 }

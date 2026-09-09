@@ -42,9 +42,21 @@ The catalogue spans both families and tags each entry `kind: 'statistical' |
 'policy'`, so a picker cannot present "fixed quantity" beside "King's formula"
 without the difference being visible.
 
-It is frozen all the way down, not just at the array, since it is a single
-shared instance. Tests assert the catalogue agrees with the functions it
+Parameter bounds say what the function really enforces, including exclusivity:
+`serviceLevel` is reported as the open interval `(0, 1)` via `minExclusive` /
+`maxExclusive`, because `safetyStock` throws on both ends. `max-minus-average`
+declares `serviceLevel` even though its formula has no `Z` term, because
+`safetyStock` validates it before selecting a formula and `auto` can route there.
+
+Both the full and filtered results are frozen all the way down, since the
+catalogue is a single shared instance. Tests assert the catalogue agrees with the functions it
 describes: every id is accepted and echoed back by the real function, every
 declared bound is really enforced, and compile-time exhaustiveness checks fail
 the build if a method is added to either family and the catalogue is not
 updated.
+
+The policy methods carry **no citation**, and that is deliberate rather than an
+omission. They are practitioner conventions, not results from a paper: "hold two
+weeks of cover" is a business decision and `fixed` is a person typing a number.
+An earlier draft attached a textbook reference to all three, which would have
+implied a derivation none of them has.

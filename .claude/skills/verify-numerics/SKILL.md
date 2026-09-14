@@ -1,13 +1,15 @@
 ---
 description: The numeric-correctness discipline for logistics-ts — how to golden-test against authoritative values, reproduce textbook examples, write fast-check property tests, and decide hand-roll-vs-dependency for a piece of maths. Trust in the numbers is the product.
-when_to_use: Trigger when writing or reviewing tests for any algorithm or numeric primitive, generating golden fixtures (statsforecast/stockpyl), reproducing a textbook worked example, or deciding whether to add a maths dependency vs. hand-roll it. Keywords "golden test", "fixture", "tolerance", "property test", "fast-check", "accuracy", "hand-roll or dependency", "z-table".
+when_to_use: Trigger when writing or reviewing tests for any algorithm or numeric primitive, generating golden fixtures (statsforecast/stockpyl), reproducing a textbook worked example, or deciding whether to add a maths dependency vs. hand-roll it. Also trigger when adding a guard or regression test for a reported bug, since a guard is not done until its mutant has been run and seen to fail. Keywords "golden test", "fixture", "tolerance", "property test", "fast-check", "accuracy", "hand-roll or dependency", "z-table", "mutation", "mutant", "does this test guard anything".
 ---
 
 # Verifying the numbers
 
 The library sells trust in its maths. A test that only checks the code runs is
-worthless; a test pins the output to an **authoritative external value**. Three
-layers, use whichever fit the function (most get 1 + 2, ideally all three).
+worthless; a test pins the output to an **authoritative external value**. Five
+layers. Use whichever fit the function — most get 1 + 2, ideally 3 as well, and
+Layer 4 applies only to simulations. **Layer 5 is not optional**: any new guard
+assertion is unfinished until its mutant has been run and seen to fail.
 
 ## Layer 1 — Golden tests against a reference
 
@@ -119,6 +121,52 @@ file and multiply. If the suite has 20 of them at 4 sigma, that is a ~1-in-800
 chance of a red CI run on an innocent commit. Either accept that explicitly in a
 comment or tighten it. Per the standing rule, **a single unreproducible red is
 not a flake until proven** — so a suite that cries wolf is worse than no suite.
+
+## Layer 5 — The mutation check: a guard is not done until its mutant fails
+
+A test that guards nothing looks exactly like a test that guards something. It is
+green, it is named after the bug, and it reads convincingly. The only way to tell
+them apart is to break the code on purpose and watch the test go red.
+
+**Coverage cannot substitute.** The #44 `leadTimePeriods: 0` defect sat in
+100%-covered code, passed every existing property test, and was found by an
+external reviewer. Line coverage proves a line ran, not that anything checked what
+it produced. `pnpm coverage` is in CI deliberately **ungated** for that reason.
+
+Run the check on **every new guard assertion**, not on the file as a whole. Budget
+for it: the M12 catalogue work needed four mutants and they took longer than the
+tests did.
+
+### The protocol
+
+1. Back the file up **outside the repo** (`command cp src/x.ts
+   "$SCRATCHPAD/x.ts.bak"`). Not to a sibling path — an untracked backup inside
+   `packages/` gets swept into a commit or a lint run.
+2. Apply **one** mutation that a correct guard must reject. Invert the comparison,
+   drop the flag, delete the branch, return the shared instance instead of a copy.
+3. **Grep the source to prove the mutant actually landed.** Do not trust that the
+   edit applied.
+4. Run **the test file**, and read the summary line. The mutant must produce a
+   non-zero failure count naming the assertion you just wrote.
+5. Restore from the backup and **verify the restore with `md5sum`**, comparing
+   against the backup. A half-restored source file is a worse outcome than never
+   having run the check.
+
+### When the result is "0 failing", suspect your command first
+
+This has now been the actual cause more often than a surviving mutant has:
+
+- **`grep`ping vitest output for `×` lines finds nothing** — the default reporter
+  prints no per-test lines for a passing-or-failing run at that verbosity. Read the
+  `Tests  N failed | M passed` summary directly. Do not grep it.
+- **Passing the *source* path to vitest** gives "No test files found", which is not
+  the same thing as a green run and is easy to misread as one.
+- **BRE vs ERE**: `grep -c "x \+ 1"` reads `\+` as a repetition operator, not a
+  literal plus. Use `grep -F` for literals.
+
+The rule that falls out: **when a verification command reports something
+surprising, the command is the first suspect, not the code.** Re-run the check a
+second way before you believe either outcome.
 
 ## Edge cases every algorithm test covers
 

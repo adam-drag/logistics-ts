@@ -31,6 +31,14 @@ export {
   seasonalDecompose,
 } from './seasonal-decompose'
 export { type SesOptions, ses } from './ses'
+// Trend detection
+export {
+  type Trend,
+  type TrendDirection,
+  type TrendOptions,
+  type TrendResult,
+  trend,
+} from './trend'
 export { type TsbOptions, tsb } from './tsb'
 // Result types
 export type { Forecast, ForecastResult } from './types'

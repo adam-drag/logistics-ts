@@ -39,6 +39,11 @@ export {
   standardDeviation,
   variance,
 } from './numerics/stats'
+export {
+  T_CONFIDENCE_LEVELS,
+  type TConfidenceLevel,
+  tCriticalTwoTailed,
+} from './numerics/student-t'
 // Synthetic data
 export {
   type DemandProfile,
